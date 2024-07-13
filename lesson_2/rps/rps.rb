@@ -19,16 +19,16 @@ class RPSGame
     case human.move
     when 'rock'
       puts "It's a tie!" if computer.move == 'rock'
-      puts "You won!" if computer.move == 'scissors'
-      puts "Computer won!" if computer.move == 'paper'
+      puts "#{human.name} won!" if computer.move == 'scissors'
+      puts "#{computer.name} won!" if computer.move == 'paper'
     when 'paper'
       puts "It's a tie!" if computer.move == 'paper'
-      puts "You won!" if computer.move == 'rock'
-      puts "Computer won!" if computer.move == 'scissors'
+      puts "#{human.name} won!" if computer.move == 'rock'
+      puts "#{computer.name} won!" if computer.move == 'scissors'
     when 'scissors'
       puts "It's a tie!" if computer.move == 'scissors'
-      puts "You won!" if computer.move == 'paper'
-      puts "Computer won!" if computer.move == 'rock'
+      puts "#{human.name} won!" if computer.move == 'paper'
+      puts "#{computer.name} won!" if computer.move == 'rock'
     end
   end
 
@@ -61,11 +61,30 @@ class RPSGame
 end
 
 class Player
-  attr_accessor :move
+  attr_accessor :move, :name
 
   def initialize(player_type = :human)
     @player_type = player_type
     @move = nil
+    set_name
+  end
+
+  def set_name
+    if human?
+      answer = ''
+
+      loop do
+        puts "What's your name?"
+        answer = gets.chomp
+        break unless answer.empty?
+
+        puts "Sorry, must enter a value."
+      end
+
+      self.name = answer
+    else
+      self.name = ['R2D2', 'Hal', 'Chappie', 'Sonny', 'Number 5'].sample
+    end
   end
 
   def choose
@@ -81,11 +100,11 @@ class Player
       end
 
       self.move = choice
-      puts "You chose #{move}."
     else
       self.move = ['rock', 'paper', 'scissors'].sample
-      puts "The computer chose #{move}."
     end
+
+    puts "#{name} chose #{move}."
   end
 
   def human?
