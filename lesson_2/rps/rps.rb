@@ -32,11 +32,30 @@ class RPSGame
     end
   end
 
+  def play_again?
+    puts "Would you like to play again? (y/n)"
+    answered_yes?
+  end
+
+  def answered_yes?
+    loop do
+      answer = gets.chomp.downcase
+      return answer.start_with?('y') if ['y', 'yes', 'n', 'no'].include? answer
+
+      puts "Sorry, must be y or n."
+    end
+  end
+
   def play
     display_welcome_message
-    human.choose
-    computer.choose
-    display_winner
+
+    loop do
+      human.choose
+      computer.choose
+      display_winner
+      break unless play_again?
+    end
+
     display_goodbye_message
   end
 end
