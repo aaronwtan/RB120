@@ -125,23 +125,15 @@ class Move
   end
 
   def >(other_move)
-    if rock?
-      other_move.scissors?
-    elsif paper?
-      other_move.rock?
-    elsif scissors?
-      other_move.paper?
-    end
+    (rock? && other_move.scissors?) ||
+      (paper? && other_move.rock?) ||
+      (scissors? && other_move.paper?)
   end
 
   def <(other_move)
-    if rock?
-      other_move.paper?
-    elsif paper?
-      other_move.scissors?
-    elsif scissors?
-      other_move.rock?
-    end
+    (rock? && other_move.paper?) ||
+      (paper? && other_move.scissors?) ||
+      (scissors? && other_move.rock?)
   end
 
   def to_s
@@ -149,14 +141,14 @@ class Move
   end
 end
 
-class Rule
-  def initialize
+# class Rule
+#   def initialize
 
-  end
-end
+#   end
+# end
 
-def compare(move1, move2)
+# def compare(move1, move2)
 
-end
+# end
 
 RPSGame.new.play
