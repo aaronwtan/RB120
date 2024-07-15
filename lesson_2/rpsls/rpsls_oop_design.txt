@@ -1,0 +1,49 @@
+1. Write a textual description of the problem or exercise.
+Rock, Paper, Scissors, Lizard, Spock is a two-player game expanding on the classical
+Rock, Paper, Scissors game where each player chooses one of five possible moves:
+rock, paper, scissors, lizard, spock. The chosen moves will then be compared to see who wins,
+according to the following rules:
+
+- rock crushes lizard and scissors
+- paper covers rock and disproves spock
+- scissors cuts paper and decapitates lizard
+- lizard poisons spock and eats paper
+- spock smashes scissors and vaporizes rock
+
+If the players chose the same move, then it's a tie.
+
+2. Extract the major nouns and verbs from the description.
+Nouns: player, move, rule
+Verbs: choose, compare
+
+
+3. Organize and associate the verbs with the nouns.
+Player
+  - choose
+Move
+Rule
+
+- compare
+
+4. The nouns are the classes and the verbs are the behaviors or methods.
+
+
+Bonus features to add
+- Keeping score; implement option to choose how many wins to play to
+  - initial thought is to track score state with a Player class attribute
+  - score should have a setter to be able to update the score state,
+  and a getter to retrieve each player's score for display in a scoreboard
+  - scoreboard can be tracked with an attribute in the RPSLSGame class
+  - scoreboard needs access to Player names and scores
+  - need to prompt user for the win condition and track with an instance variable
+  in an attribute of the RPSLSGame class
+  - need to execute gameplay loop until score of any Player object reaches
+  the win condition of the game
+  - score needs to be reset to 0 when playing a new game
+- Add Lizard and Spock; implement option to play default or expanded game
+- Keep track of a history of moves that can be called any time a human player
+is prompted
+- Implement computer personalities and ability to toggle playing with personalities
+or the default (random) behavior
+- Implement option to designate whether a player is human or computer,
+letting 2 human or even 2 computer players play against each other
