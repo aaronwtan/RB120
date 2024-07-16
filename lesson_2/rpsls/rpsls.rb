@@ -16,7 +16,7 @@ class RPSLSGame
       break unless play_again?
     end
 
-    display_goodbye_message
+    display_goodbye_message(game_mode)
   end
 
   private
@@ -43,16 +43,16 @@ class RPSLSGame
 
   def ask_default_settings
     puts "Would you like to play with the default settings?"
-    answered_yes? ? DefaultSettings.new : Settings.new
+    answered_yes? ? Settings.new(default: true) : Settings.new
   end
 
   def ask_change_settings
     puts "Would you like to change the previous settings?"
-    ask_default_settings if answered_yes?
+    answered_yes? ? ask_default_settings : settings
   end
 
   def set_game_mode
-    puts "Would you like to play the expanded game: Rock, Paper, Scissors, Lizard, Spock?"
+    puts "Would you like to play the expanded game: #{expand_title(:rpsls)}?"
 
     self.game_mode = if answered_yes?
                        :rpsls
@@ -81,16 +81,24 @@ class RPSLSGame
 end
 
 class Settings
+  attr_reader :default
   attr_accessor :players, :win_condition
 
-  def initialize
+  def initialize(default: false)
+    @default = default
     @players = []
     set_players
     set_win_condition
   end
 
   def set_players
-    2.times { |num| ask_human_or_computer_player(num) }
+    if default
+      player1 = Human.new(default_game: true)
+      player2 = Computer.new
+      self.players = [player1, player2]
+    else
+      2.times { |num| ask_human_or_computer_player(num) }
+    end
   end
 
   def ask_human_or_computer_player(num)
@@ -106,6 +114,8 @@ class Settings
   end
 
   def set_win_condition
+    return self.win_condition = 10 if default
+
     answer = nil
 
     loop do
@@ -122,15 +132,6 @@ class Settings
 
   def valid_win_condition?(str)
     str =~ /^\d+$/ && str.to_i.positive?
-  end
-end
-
-class DefaultSettings < Settings
-  def initialize
-    player1 = Human.new(default_game: true)
-    player2 = Computer.new
-    @players = [player1, player2]
-    @win_condition = 10
   end
 end
 
