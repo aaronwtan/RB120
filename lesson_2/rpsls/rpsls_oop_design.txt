@@ -33,10 +33,10 @@ Bonus features to add
   - initial thought is to track score state with a Player class attribute
   - score should have a setter to be able to update the score state,
   and a getter to retrieve each player's score for display in a scoreboard
-  - scoreboard can be tracked with an attribute in the RPSLSGame class
+  - scoreboard can be created and displayed with a method in the Game class
   - scoreboard needs access to Player names and scores
   - need to prompt user for the win condition and track with an instance variable
-  in an attribute of the RPSLSGame class
+  in an attribute of the Game class
   - need to execute gameplay loop until score of any Player object reaches
   the win condition of the game
   - score needs to be reset to 0 when playing a new game
