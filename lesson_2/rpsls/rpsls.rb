@@ -208,14 +208,21 @@ class Game
   end
 
   def display_winner
-    if player1.move > player2.move
-      player1.increment_score
-      display_interface("#{player1.name} won!")
-    elsif player1.move < player2.move
-      player2.increment_score
-      display_interface("#{player2.name} won!")
+    winner = determine_winner
+
+    if winner
+      winner.increment_score
+      display_interface("#{winner.name} won!")
     else
       display_interface('tie')
+    end
+  end
+
+  def determine_winner
+    if player1.move > player2.move
+      player1
+    elsif player1.move < player2.move
+      player2
     end
   end
 end
@@ -242,13 +249,13 @@ class Settings
       player2 = Computer.new(game_mode)
       self.players = [player1, player2]
     else
-      2.times { |num| players[num] = ask_human_or_computer_player(num) }
+      2.times { |num| players[num] = ask_human_or_computer_player(num + 1) }
     end
   end
 
-  def ask_human_or_computer_player(num)
+  def ask_human_or_computer_player(id)
     loop do
-      prompt("Is player #{num + 1} a human or a computer? (h/c)")
+      prompt("Is player #{id} a human or a computer? (h/c)")
       answer = gets.chomp.downcase
 
       return Human.new(game_mode) if Human::VALUES.include?(answer)

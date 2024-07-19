@@ -29,7 +29,7 @@ Rule
 
 
 Bonus features to add
-- Keeping score; implement option to choose how many wins to play to
+x Keeping score; implement option to choose how many wins to play to
   - initial thought is to track score state with a Player class attribute
   - score should have a setter to be able to update the score state,
   and a getter to retrieve each player's score for display in a scoreboard
@@ -40,10 +40,10 @@ Bonus features to add
   - need to execute gameplay loop until score of any Player object reaches
   the win condition of the game
   - score needs to be reset to 0 when playing a new game
-- Add Lizard and Spock; implement option to play default or expanded game
+x Add Lizard and Spock; implement option to play default or expanded game
 - Keep track of a history of moves that can be called any time a human player
 is prompted
 - Implement computer personalities and ability to toggle playing with personalities
 or the default (random) behavior
-- Implement option to designate whether a player is human or computer,
+x Implement option to designate whether a player is human or computer,
 letting 2 human or even 2 computer players play against each other
