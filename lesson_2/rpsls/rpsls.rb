@@ -1,5 +1,6 @@
 # Game Orchestration Engine
 require 'pry'
+require 'yaml'
 
 module Displayable
   def header(width, title = '')
@@ -26,6 +27,7 @@ module Displayable
   end
 
   def display_title(width, title)
+    system 'clear'
     puts header(width)
     puts body(['', title, ''], width, :center)
     puts footer(width)
@@ -44,8 +46,35 @@ module Displayable
   end
 end
 
-class RPSLSGame
+module Utility
   include Displayable
+
+  MESSAGES = YAML.load_file('rpsls.yml')
+
+  def prompt(msg)
+    if MESSAGES.key?(msg)
+      puts ">> #{MESSAGES[msg]}"
+    else
+      puts ">> #{msg}"
+    end
+  end
+
+  def answered_yes?
+    loop do
+      answer = gets.chomp.downcase
+      return answer.start_with?('y') if ['y', 'yes', 'n', 'no'].include? answer
+
+      prompt('invalid_yes_or_no')
+    end
+  end
+
+  def pause
+    sleep(2)
+  end
+end
+
+class RPSLSGame
+  include Utility
   attr_accessor :settings
 
   CLASSIC_MODE = 'Rock, Paper, Scissors'
@@ -57,15 +86,6 @@ class RPSLSGame
 
   def self.increment_games_played
     @@games_played += 1
-  end
-
-  def self.answered_yes?
-    loop do
-      answer = gets.chomp.downcase
-      return answer.start_with?('y') if ['y', 'yes', 'n', 'no'].include? answer
-
-      puts "Sorry, must be y or n."
-    end
   end
 
   def play
@@ -89,7 +109,7 @@ class RPSLSGame
   end
 
   def display_goodbye_message
-    puts "Thanks for playing #{CLASSIC_MODE}. Good bye!"
+    prompt("Thanks for playing #{CLASSIC_MODE}. Good bye!")
   end
 
   def set_settings
@@ -101,23 +121,23 @@ class RPSLSGame
   end
 
   def ask_default_settings
-    puts "Would you like to play with the default settings?"
-    RPSLSGame.answered_yes? ? Settings.new(default: true) : Settings.new
+    prompt('default_settings')
+    answered_yes? ? Settings.new(default: true) : Settings.new
   end
 
   def ask_change_settings
-    puts "Would you like to change the previous settings?"
-    RPSLSGame.answered_yes? ? ask_default_settings : settings
+    prompt('change_settings')
+    answered_yes? ? ask_default_settings : settings
   end
 
   def play_again?
-    puts "Would you like to play again? (y/n)"
-    RPSLSGame.answered_yes?
+    prompt('play_again')
+    answered_yes?
   end
 end
 
 class Game
-  include Comparable, Displayable
+  include Utility, Comparable
   attr_reader :player1, :player2, :win_condition, :game_mode
   attr_accessor :round
 
@@ -145,11 +165,15 @@ class Game
 
   private
 
-  def display_interface
+  def display_interface(msg = nil)
     system 'clear'
     title = expand_game_mode
     display(title)
     display_scoreboard
+    return if msg.nil?
+
+    prompt(msg)
+    pause
   end
 
   def expand_game_mode
@@ -178,17 +202,19 @@ class Game
   def display_winner
     if player1.move > player2.move
       player1.increment_score
-      puts "#{player1.name} won!"
+      display_interface("#{player1.name} won!")
     elsif player1.move < player2.move
       player2.increment_score
-      puts "#{player2.name} won!"
+      display_interface("#{player2.name} won!")
     else
-      puts "It's a tie!"
+      display_interface('tie')
     end
   end
 end
 
 class Settings
+  include Utility
+
   attr_reader :default
   attr_accessor :players, :win_condition, :game_mode
 
@@ -214,13 +240,13 @@ class Settings
 
   def ask_human_or_computer_player(num)
     loop do
-      puts "Is player #{num + 1} a human or a computer? (h/c)"
+      prompt("Is player #{num + 1} a human or a computer? (h/c)")
       answer = gets.chomp.downcase
 
       break players[num] = Human.new if Human::VALUES.include?(answer)
       break players[num] = Computer.new if Computer::VALUES.include?(answer)
 
-      puts "Invalid response. Please enter h or c."
+      prompt('invalid_human_computer')
     end
   end
 
@@ -230,15 +256,15 @@ class Settings
     answer = nil
 
     loop do
-      puts "How many wins would you like to play to?"
+      prompt('win_condition')
       answer = gets.chomp
       break if valid_win_condition?(answer)
 
-      puts "Invalid response. Please enter a positive integer."
+      prompt('invalid_win_condition')
     end
 
     self.win_condition = answer.to_i
-    puts "First to #{win_condition} wins!"
+    prompt("First to #{win_condition} wins!")
   end
 
   def valid_win_condition?(str)
@@ -248,10 +274,8 @@ class Settings
   def set_game_mode
     return self.game_mode = :rps if default
 
-    puts "Would you like to play the expanded game: " \
-         "Rock, Paper, Scissors, Lizard, Spock?"
-
-    self.game_mode = if RPSLSGame.answered_yes?
+    prompt('expanded_game')
+    self.game_mode = if answered_yes?
                        :rpsls
                      else
                        :rps
@@ -260,6 +284,8 @@ class Settings
 end
 
 class Player
+  include Utility
+
   attr_accessor :name, :move, :score
 
   def initialize
@@ -288,15 +314,16 @@ class Human < Player
     choice = nil
 
     loop do
-      puts "Please choose rock, paper, or scissors:"
+      prompt('choose_move')
       choice = gets.chomp
       break if Move::VALUES.include? choice
 
-      puts "Sorry, invalid choice."
+      prompt('invalid_move')
     end
 
     self.move = Move.new(choice)
-    puts "#{name} chose #{move}."
+    prompt("#{name} chose #{move}.")
+    pause
   end
 
   private
@@ -309,11 +336,11 @@ class Human < Player
     answer = ''
 
     loop do
-      puts "What's your name?"
+      prompt('ask_name')
       answer = gets.chomp
       break unless answer.empty?
 
-      puts "Sorry, must enter a value."
+      prompt('invalid_name')
     end
 
     self.name = answer
@@ -329,7 +356,8 @@ class Computer < Player
 
   def choose
     self.move = Move.new(Move::VALUES.sample)
-    puts "#{name} chose #{move}."
+    prompt("#{name} chose #{move}.")
+    pause
   end
 end
 
