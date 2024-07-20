@@ -80,14 +80,6 @@ class RPSLSGame
   CLASSIC_MODE = 'Rock, Paper, Scissors'
   EXPANDED_MODE = 'Rock, Paper, Scissors, Lizard, Spock'
 
-  def initialize
-    @@games_played = 0
-  end
-
-  def self.increment_games_played
-    @@games_played += 1
-  end
-
   def play
     display_welcome_message
 
@@ -121,7 +113,7 @@ class RPSLSGame
   end
 
   def set_settings
-    self.settings = if @@games_played < 1
+    self.settings = if Game.games_played < 1
                       ask_default_settings
                     else
                       ask_change_settings
@@ -149,14 +141,16 @@ class Game
   attr_reader :player1, :player2, :win_condition, :game_mode
   attr_accessor :round
 
+  @@games_played = 0
+
   def initialize(settings)
+    @@games_played += 1
     @player1 = settings.players.first
     @player2 = settings.players.last
     @win_condition = settings.win_condition
     @game_mode = settings.game_mode
     @round = 1
     initialize_score
-    RPSLSGame.increment_games_played
   end
 
   def start
@@ -169,6 +163,10 @@ class Game
 
       increment_round
     end
+  end
+
+  def self.games_played
+    @@games_played
   end
 
   private
