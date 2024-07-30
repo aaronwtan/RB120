@@ -1,6 +1,37 @@
-# Game Orchestration Engine
 require 'pry'
 require 'yaml'
+
+CLASSIC_MODE = 'Rock, Paper, Scissors'
+EXPANDED_MODE = 'Rock, Paper, Scissors, Lizard, Spock'
+
+RULES_RPS = <<-MSG
+Rock, Paper, Scissors is a two-player game where each player chooses one of
+three possible moves: rock, paper, scissors. The chosen moves will then be
+compared to see who wins, according to the following rules:
+
+- rock crushes scissors
+- paper covers rock
+- scissors cuts paper
+
+If the players chose the same move, then it's a tie.
+
+MSG
+
+RULES_RPSLS = <<-MSG
+Rock, Paper, Scissors, Lizard, Spock is a two-player game expanding on the
+classical Rock, Paper, Scissors game where each player chooses one of
+five possible moves: rock, paper, scissors, lizard, spock. The chosen moves
+will then be compared to see who wins, according to the following rules:
+
+- rock crushes lizard and scissors
+- paper covers rock and disproves spock
+- scissors cuts paper and decapitates lizard
+- lizard poisons spock and eats paper
+- spock smashes scissors and vaporizes rock
+
+If the players chose the same move, then it's a tie.
+
+MSG
 
 module Displayable
   def header(width, title = '')
@@ -73,43 +104,38 @@ module Utility
   end
 end
 
+# Game Orchestration Engine
 class RPSLSGame
   include Utility
-  attr_accessor :settings
+  attr_accessor :settings, :mode_title
 
-  CLASSIC_MODE = 'Rock, Paper, Scissors'
-  EXPANDED_MODE = 'Rock, Paper, Scissors, Lizard, Spock'
+  def initialize
+    @mode_title = CLASSIC_MODE
+    display_welcome_message
+  end
 
   def play
-    display_welcome_message
-
     loop do
       set_settings
-      display_welcome_message(settings.game_mode)
+      display_welcome_message
+      ask_rules
       game = Game.new(settings)
       game.start
       break unless play_again?
     end
 
-    display_goodbye_message(settings.game_mode)
+    display_goodbye_message
   end
 
   private
 
-  def display_welcome_message(game_mode = :rps)
-    title = case game_mode
-            when :rps then "WELCOME TO #{CLASSIC_MODE.upcase}!"
-            when :rpsls then "WELCOME TO #{EXPANDED_MODE.upcase}!"
-            end
-
+  def display_welcome_message
+    title = "WELCOME TO #{mode_title.upcase}!"
     display(title)
   end
 
-  def display_goodbye_message(game_mode = :rps)
-    case game_mode
-    when :rps then prompt("Thanks for playing #{CLASSIC_MODE}. Good bye!")
-    when :rpsls then prompt("Thanks for playing #{EXPANDED_MODE}. Good bye!")
-    end
+  def display_goodbye_message
+    prompt("Thanks for playing #{mode_title}. Good bye!")
   end
 
   def set_settings
@@ -118,6 +144,7 @@ class RPSLSGame
                     else
                       ask_change_settings
                     end
+    set_mode_title
   end
 
   def ask_default_settings
@@ -130,6 +157,40 @@ class RPSLSGame
     answered_yes? ? ask_default_settings : settings
   end
 
+  def set_mode_title
+    self.mode_title = settings.game_mode_title
+  end
+
+  def ask_rules
+    prompt('rules')
+
+    if answered_yes?
+      system 'clear'
+      display_rules
+    else
+      prompt("Ah, I see you're a savant in the art of #{mode_title}. " \
+             "Very well, let's continue.")
+      enter_to_continue
+    end
+  end
+
+  def display_rules
+    display_title(80, "RULES OF #{mode_title.upcase}")
+
+    case settings.game_mode
+    when :rps   then puts RULES_RPS
+    when :rpsls then puts RULES_RPSLS
+    end
+
+    enter_to_continue
+  end
+
+  def enter_to_continue
+    pause
+    prompt('continue')
+    gets
+  end
+
   def play_again?
     prompt('play_again')
     answered_yes?
@@ -138,7 +199,7 @@ end
 
 class Game
   include Utility
-  attr_reader :player1, :player2, :win_condition, :game_mode
+  attr_reader :player1, :player2, :win_condition, :mode, :mode_title
   attr_accessor :round
 
   @@games_played = 0
@@ -148,7 +209,8 @@ class Game
     @player1 = settings.players.first
     @player2 = settings.players.last
     @win_condition = settings.win_condition
-    @game_mode = settings.game_mode
+    @mode = settings.game_mode
+    @mode_title = settings.game_mode_title
     @round = 1
     initialize_score
   end
@@ -173,20 +235,12 @@ class Game
 
   def display_interface(msg = nil)
     system 'clear'
-    title = expand_game_mode
-    display(title)
+    display(mode_title)
     display_scoreboard
     return if msg.nil?
 
     prompt(msg)
     pause
-  end
-
-  def expand_game_mode
-    case game_mode
-    when :rps   then RPSLSGame::CLASSIC_MODE
-    when :rpsls then RPSLSGame::EXPANDED_MODE
-    end
   end
 
   def initialize_score
@@ -229,12 +283,13 @@ class Settings
   include Utility
 
   attr_reader :default
-  attr_accessor :players, :win_condition, :game_mode
+  attr_accessor :players, :win_condition, :game_mode, :game_mode_title
 
   def initialize(default: false)
     @default = default
     @players = []
     set_game_mode
+    @game_mode_title = expand_game_mode
     set_players
     set_win_condition
   end
@@ -293,6 +348,13 @@ class Settings
                      else
                        :rps
                      end
+  end
+
+  def expand_game_mode
+    case game_mode
+    when :rps   then CLASSIC_MODE
+    when :rpsls then EXPANDED_MODE
+    end
   end
 end
 
@@ -451,15 +513,15 @@ class ExpandedMove < Move
                 'lizard' => ['spock', 'paper'],
                 'spock' => ['scissors', 'rock'] }
 end
-
-# class Rule
-#   def initialize
-
-#   end
-# end
-
-# def compare(move1, move2)
-
-# end
+# Addressing the bonus feature of adding a class for each move, I would
+# most likely add each separate move class here and change the
+# constant VALUES to house the separate move objects and modify WIN_RULES
+# as appropriate for each individual move class. I don't believe this
+# would be a productive design decision, because the ClassicMove
+# and ExpandedMove classes are already concise enough and creating separate
+# classes for each move would create more clutter in the codebase and
+# make the relationships between each of the different moves not
+# as clear. Each of the WIN_RULES hashes accomplishes the same functionality
+# as creating separate classes in a way that makes move relationships clear
 
 RPSLSGame.new.play
