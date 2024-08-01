@@ -90,6 +90,16 @@ module Utility
     end
   end
 
+  def join_or(words)
+    num_of_words = words.size
+
+    case num_of_words
+    when 1 then words.first
+    when 2 then "#{words.first} or #{words.last}"
+    else        "#{words[0...-1].join(', ')}, or #{words.last}"
+    end
+  end
+
   def answered_yes?
     loop do
       answer = gets.chomp.downcase
@@ -101,6 +111,18 @@ module Utility
 
   def pause
     sleep(2)
+  end
+
+  def print_with_loading(msg)
+    print msg
+    sleep(0.5)
+
+    3.times do
+      print '.'
+      sleep(0.5)
+    end
+
+    puts ''
   end
 end
 
@@ -216,14 +238,16 @@ class Game
   end
 
   def start
+    current_player = player1
+
     loop do
       display_interface
+      # current_player.choose
+      # alternate_player(current_player) unless asked_help(current_player)
       player1.choose
       player2.choose
       display_winner
       break if player1.score >= win_condition || player2.score >= win_condition
-
-      increment_round
     end
   end
 
@@ -232,6 +256,10 @@ class Game
   end
 
   private
+
+  def alternate_player(current_player)
+    current_player == player1 ? player2 : player1
+  end
 
   def display_interface(msg = nil)
     system 'clear'
@@ -260,14 +288,26 @@ class Game
   end
 
   def display_winner
+    display_moves
     winner = determine_winner
 
     if winner
       winner.increment_score
-      display_interface("#{winner.name} won!")
+      prompt("#{winner.name} won!")
     else
-      display_interface('tie')
+      prompt('tie')
     end
+
+    pause
+    increment_round
+  end
+
+  def display_moves
+    display_interface
+    prompt("#{player1.name} chose #{player1.move}.")
+    pause
+    prompt("#{player2.name} chose #{player2.move}.")
+    pause
   end
 
   def determine_winner
@@ -276,6 +316,10 @@ class Game
     elsif player1.move < player2.move
       player2
     end
+  end
+
+  def asked_help
+
   end
 end
 
@@ -303,6 +347,7 @@ class Settings
       self.players = [player1, player2]
     else
       2.times { |num| players[num] = ask_human_or_computer_player(num + 1) }
+      update_duplicate_names!(players)
     end
   end
 
@@ -316,6 +361,13 @@ class Settings
 
       prompt('invalid_human_computer')
     end
+  end
+
+  def update_duplicate_names!(players)
+    return unless players.first.name == players.last.name
+
+    players.first.name << ' 1'
+    players.last.name << ' 2'
   end
 
   def set_win_condition
@@ -389,17 +441,15 @@ class Human < Player
     choice = nil
 
     loop do
-      prompt('choose_move')
-      choice = gets.chomp
+      prompt("#{name}, please choose #{valid_choices}:")
+      choice = expand_choice(gets.chomp)
 
       break if valid_choice?(choice)
 
-      prompt('invalid_move')
+      prompt('invalid_choice')
     end
 
     self.move = chosen_move(choice)
-    prompt("#{name} chose #{move}.")
-    pause
   end
 
   private
@@ -411,7 +461,7 @@ class Human < Player
 
     loop do
       prompt('ask_name')
-      answer = gets.chomp
+      answer = gets.chomp.strip
       break unless answer.empty?
 
       prompt('invalid_name')
@@ -420,10 +470,32 @@ class Human < Player
     self.name = answer
   end
 
-  def chosen_move(choice)
+  def valid_choices
     case game_mode
-    when :rps   then ClassicMove.new(choice)
-    when :rpsls then ExpandedMove.new(choice)
+    when :rps   then join_or(ClassicMove::VALUES)
+    when :rpsls then join_or(ExpandedMove::VALUES)
+    end
+  end
+
+  def expand_choice(choice)
+    case choice
+    when 'r' then 'rock'
+    when 'p' then 'paper'
+    when 'l' then 'lizard'
+    when 's' then game_mode == :rpsls ? ask_scissors_or_spock : 'scissors'
+    else          choice
+    end
+  end
+
+  def ask_scissors_or_spock
+    loop do
+      prompt('scissors_or_spock')
+      answer = gets.chomp.downcase
+
+      return 'scissors' if ['scissors', 'sc'].include?(answer)
+      return 'spock' if ['spock', 'sp'].include?(answer)
+
+      prompt('invalid_choice')
     end
   end
 
@@ -431,6 +503,13 @@ class Human < Player
     case game_mode
     when :rps   then ClassicMove::VALUES.include? choice
     when :rpsls then ExpandedMove::VALUES.include? choice
+    end
+  end
+
+  def chosen_move(choice)
+    case game_mode
+    when :rps   then ClassicMove.new(choice)
+    when :rpsls then ExpandedMove.new(choice)
     end
   end
 end
@@ -443,9 +522,8 @@ class Computer < Player
   end
 
   def choose
+    print_with_loading("#{name} is choosing")
     self.move = chosen_move
-    prompt("#{name} chose #{move}.")
-    pause
   end
 
   private
