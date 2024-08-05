@@ -403,11 +403,33 @@ class Settings
       answer = gets.chomp.downcase
 
       return Human.new(game_mode) if Human::VALUES.include? answer
-      if Computer::VALUES.include? answer
-        return Computer.new(game_mode) 
-      end
+      return ask_computer_with_personality if Computer::VALUES.include? answer
 
       prompt('invalid_human_computer')
+    end
+  end
+
+  def ask_computer_with_personality
+    prompt('ai_personality')
+    return Computer.new(game_mode) unless answered_yes?
+
+    loop do
+      prompt("Choose #{join_or(Computer::PERSONALITIES)} for the computer:")
+      choice = gets.chomp.downcase
+      if Computer::PERSONALITIES.include? choice
+        return choose_personality(choice)
+      end
+      prompt('invalid_choice')
+    end
+  end
+
+  def choose_personality(choice)
+    case choice
+    when 'r2d2'     then R2D2.new(game_mode)
+    when 'hal'      then Hal.new(game_mode)
+    when 'chappie'  then Chappie.new(game_mode)
+    when 'sonny'    then Sonny.new(game_mode)
+    when 'number 5' then Number5.new(game_mode)
     end
   end
 
@@ -631,6 +653,7 @@ end
 
 class Computer < Player
   VALUES = ['c', 'computer']
+  PERSONALITIES = ['r2d2', 'hal', 'chappie', 'sonny', 'number 5']
 
   def set_name
     self.name = ['R2D2', 'Hal', 'Chappie', 'Sonny', 'Number 5'].sample
@@ -651,30 +674,100 @@ class Computer < Player
   end
 end
 
+# always chooses rock
 class R2D2 < Computer
   def set_name
     self.name = 'R2D2'
   end
+
+  private
+
+  def chosen_move
+    case game_mode
+    when :rps then ClassicMove.new('rock')
+    when :rpsls then ExpandedMove.new('rock')
+    end
+  end
 end
 
+# high chance to choose scissors, low chance for rock, never any other move
 class Hal < Computer
+  MOVE_POOL = ['scissors', 'scissors', 'scissors', 'scissors', 'rock']
+
   def set_name
     self.name = 'Hal'
   end
+
+  private
+
+  def chosen_move
+    case game_mode
+    when :rps then ClassicMove.new(MOVE_POOL.sample)
+    when :rpsls then ExpandedMove.new(MOVE_POOL.sample)
+    end
+  end
 end
 
+# first move is random, but each subsequent move
+# follows the order of rock, paper, scissors
+# (or rock, paper, scissors, lizard, spock depending on the game mode)
+# note: will always tie if playing with 2 Chappies and
+# first move is the same
 class Chappie < Computer
+  attr_accessor :move_counter
+
   def set_name
     self.name = 'Chappie'
   end
-end
 
-class Sonny < Computer
-  def set_name
-    self.name = 'Sonny'
+  private
+
+  def chosen_move
+    return starting_move if move_counter.nil?
+
+    self.move_counter += 1
+    case game_mode
+    when :rps
+      self.move_counter %= ClassicMove::VALUES.size
+      ClassicMove.new(ClassicMove::VALUES[move_counter])
+    when :rpsls
+      self.move_counter %= ExpandedMove::VALUES.size
+      ExpandedMove.new(ExpandedMove::VALUES[move_counter])
+    end
+  end
+
+  def starting_move
+    case game_mode
+    when :rps
+      move = ClassicMove.new(ClassicMove::VALUES.sample)
+      self.move_counter = ClassicMove::VALUES.index(move.value)
+    when :rpsls
+      move = ExpandedMove.new(ExpandedMove::VALUES.sample)
+      self.move_counter = ExpandedMove::VALUES.index(move.value)
+    end
+
+    move
   end
 end
 
+# never chooses rock
+class Sonny < Computer
+  CLASSIC_MOVE_POOL = ['paper', 'scissors']
+  EXPANDED_MOVE_POOL = ['paper', 'scissors', 'lizard', 'spock']
+
+  def set_name
+    self.name = 'Sonny'
+  end
+
+  def chosen_move
+    case game_mode
+    when :rps then ClassicMove.new(CLASSIC_MOVE_POOL.sample)
+    when :rpsls then ExpandedMove.new(EXPANDED_MOVE_POOL.sample)
+    end
+  end
+end
+
+# plays randomly as normal
 class Number5 < Computer
   def set_name
     self.name = 'Number 5'
