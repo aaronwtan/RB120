@@ -6,30 +6,35 @@ EXPANDED_MODE = 'Rock, Paper, Scissors, Lizard, Spock'
 
 RULES_RPS = <<-MSG
 Rock, Paper, Scissors is a two-player game where each player chooses one of
-three possible moves: rock, paper, scissors. The chosen moves will then be
-compared to see who wins, according to the following rules:
+three possible moves: (R) rock, (P) paper, (S) scissors. The chosen moves
+will then be compared to see who wins, according to the following rules:
 
-- rock crushes scissors
-- paper covers rock
-- scissors cuts paper
+- Rock crushes Scissors
+- Paper covers Rock
+- Scissors cuts Paper
 
 If the players chose the same move, then it's a tie.
+
+Enter 'help' or 'h' at any time to see these rules again.
 
 MSG
 
 RULES_RPSLS = <<-MSG
 Rock, Paper, Scissors, Lizard, Spock is a two-player game expanding on the
 classical Rock, Paper, Scissors game where each player chooses one of
-five possible moves: rock, paper, scissors, lizard, spock. The chosen moves
-will then be compared to see who wins, according to the following rules:
+five possible moves: (R) rock, (P) paper, (SC) scissors, (L) lizard, (SP) spock.
+The chosen moves will then be compared to see who wins,
+according to the following rules:
 
-- rock crushes lizard and scissors
-- paper covers rock and disproves spock
-- scissors cuts paper and decapitates lizard
-- lizard poisons spock and eats paper
-- spock smashes scissors and vaporizes rock
+- Rock crushes Lizard and Scissors
+- Paper covers Rock and disproves Spock
+- Scissors cuts Paper and decapitates Lizard
+- Lizard poisons Spock and eats Paper
+- Spock smashes Scissors and vaporizes Rock
 
 If the players chose the same move, then it's a tie.
+
+Enter 'help' or 'h' at any time to see these rules again.
 
 MSG
 
@@ -136,13 +141,12 @@ class RPSLSGame
     display_welcome_message
   end
 
-  def play
+  def start
     loop do
       set_settings
       display_welcome_message
-      ask_rules
       game = Game.new(settings)
-      game.start
+      game.play
       break unless play_again?
     end
 
@@ -183,6 +187,53 @@ class RPSLSGame
     self.mode_title = settings.game_mode_title
   end
 
+  def play_again?
+    prompt('play_again')
+    answered_yes?
+  end
+end
+
+class Game
+  include Utility
+  attr_reader :player1, :player2, :win_condition, :mode, :mode_title
+  attr_accessor :current_player, :round, :history
+
+  @@games_played = 0
+
+  def initialize(settings)
+    @@games_played += 1
+    @player1 = settings.players.first
+    @player2 = settings.players.last
+    @current_player = player1
+    @win_condition = settings.win_condition
+    @mode = settings.game_mode
+    @mode_title = settings.game_mode_title
+    @round = 1
+    @history = History.new(player1, player2)
+    initialize_score
+  end
+
+  def play
+    ask_rules
+
+    loop do
+      display_interface
+      current_player.choose
+      next if help_asked?
+      alternate_player
+      display_results if all_moves_chosen?
+      break if final_winner?
+    end
+
+    display_final_results
+  end
+
+  def self.games_played
+    @@games_played
+  end
+
+  private
+
   def ask_rules
     prompt('rules')
 
@@ -199,7 +250,7 @@ class RPSLSGame
   def display_rules
     display_title(80, "RULES OF #{mode_title.upcase}")
 
-    case settings.game_mode
+    case mode
     when :rps   then puts RULES_RPS
     when :rpsls then puts RULES_RPSLS
     end
@@ -213,58 +264,25 @@ class RPSLSGame
     gets
   end
 
-  def play_again?
-    prompt('play_again')
-    answered_yes?
-  end
-end
-
-class Game
-  include Utility
-  attr_reader :player1, :player2, :win_condition, :mode, :mode_title
-  attr_accessor :round
-
-  @@games_played = 0
-
-  def initialize(settings)
-    @@games_played += 1
-    @player1 = settings.players.first
-    @player2 = settings.players.last
-    @win_condition = settings.win_condition
-    @mode = settings.game_mode
-    @mode_title = settings.game_mode_title
-    @round = 1
-    initialize_score
+  def alternate_player
+    self.current_player = case current_player
+                          when player1 then player2
+                          when player2 then player1
+                          end
   end
 
-  def start
-    current_player = player1
+  def help_asked?
+    return unless ['help', 'h'].include? current_player.move.value
 
-    loop do
-      display_interface
-      # current_player.choose
-      # alternate_player(current_player) unless asked_help(current_player)
-      player1.choose
-      player2.choose
-      display_winner
-      break if player1.score >= win_condition || player2.score >= win_condition
-    end
-  end
-
-  def self.games_played
-    @@games_played
-  end
-
-  private
-
-  def alternate_player(current_player)
-    current_player == player1 ? player2 : player1
+    display_rules
+    true
   end
 
   def display_interface(msg = nil)
     system 'clear'
     display(mode_title)
     display_scoreboard
+    puts "First to #{win_condition} wins!"
     return if msg.nil?
 
     prompt(msg)
@@ -283,23 +301,21 @@ class Game
     display(title, text, :left)
   end
 
-  def increment_round
+  def initialize_next_round
     self.round += 1
+    reset_moves
   end
 
-  def display_winner
+  def reset_moves
+    player1.move = nil
+    player2.move = nil
+  end
+
+  def display_results
     display_moves
-    winner = determine_winner
-
-    if winner
-      winner.increment_score
-      prompt("#{winner.name} won!")
-    else
-      prompt('tie')
-    end
-
+    display_winner
+    initialize_next_round unless final_winner?
     pause
-    increment_round
   end
 
   def display_moves
@@ -310,6 +326,20 @@ class Game
     pause
   end
 
+  def display_winner
+    winner = determine_winner
+    history << winner
+    player1.moves << player1.move
+    player2.moves << player2.move
+
+    if winner
+      winner.increment_score
+      prompt("#{winner.name} won!")
+    else
+      prompt('tie')
+    end
+  end
+
   def determine_winner
     if player1.move > player2.move
       player1
@@ -318,8 +348,24 @@ class Game
     end
   end
 
-  def asked_help
+  def all_moves_chosen?
+    !(player1.move.nil? || player2.move.nil?)
+  end
 
+  def display_final_results
+    final_winner = determine_final_winner
+    display_interface
+    puts history
+    prompt("#{final_winner} is the first to reach #{win_condition} points " \
+           "and is the final winner of #{mode_title}!")
+  end
+
+  def determine_final_winner
+    player1.score >= win_condition ? player1 : player2
+  end
+
+  def final_winner?
+    player1.score >= win_condition || player2.score >= win_condition
   end
 end
 
@@ -356,8 +402,10 @@ class Settings
       prompt("Is player #{id} a human or a computer? (h/c)")
       answer = gets.chomp.downcase
 
-      return Human.new(game_mode) if Human::VALUES.include?(answer)
-      return Computer.new(game_mode) if Computer::VALUES.include?(answer)
+      return Human.new(game_mode) if Human::VALUES.include? answer
+      if Computer::VALUES.include? answer
+        return Computer.new(game_mode) 
+      end
 
       prompt('invalid_human_computer')
     end
@@ -410,20 +458,84 @@ class Settings
   end
 end
 
+class History
+  include Displayable
+
+  attr_accessor :player1, :player2, :winners
+  attr_reader :column_width
+
+  def initialize(player1, player2)
+    @player1 = player1
+    @player2 = player2
+    @winners = []
+    @column_width = calculate_column_width
+  end
+
+  def <<(round_winner)
+    winners << (round_winner ? round_winner.name : 'tie')
+    self
+  end
+
+  def to_s
+    header_width = (column_width * 4) + 5
+    "#{header(header_width, 'MOVE HISTORY')}\n#{column_headers}" \
+      "#{table_body_lines.join}#{footer(header_width)}\n"
+  end
+
+  private
+
+  def column_headers
+    "|#{'Round'.center(column_width)}|#{player1.name.center(column_width)}|" \
+      "#{player2.name.center(column_width)}|" \
+      "#{'Winner'.center(column_width)}|\n" \
+      "|#{"#{'-' * (column_width)}|" * 4}\n"
+  end
+
+  def table_body_lines
+    (1..winners.size).map do |round|
+      "|#{round.to_s.center(column_width)}" \
+        "|#{player1_move(round).center(column_width)}" \
+        "|#{player2_move(round).center(column_width)}" \
+        "|#{round_winner(round).center(column_width)}|\n"
+    end
+  end
+
+  def calculate_column_width
+    [player1.name.length, player2.name.length, 8].max + 2
+  end
+
+  def player1_move(round)
+    player1.moves[round - 1].value
+  end
+
+  def player2_move(round)
+    player2.moves[round - 1].value
+  end
+
+  def round_winner(round)
+    winners[round - 1]
+  end
+end
+
 class Player
   include Utility
 
   attr_reader :game_mode
-  attr_accessor :name, :move, :score
+  attr_accessor :name, :move, :moves, :score
 
   def initialize(game_mode)
     set_name
+    @moves = []
     @game_mode = game_mode
     @score = 0
   end
 
   def increment_score
     self.score += 1
+  end
+
+  def to_s
+    name
   end
 end
 
@@ -441,7 +553,8 @@ class Human < Player
     choice = nil
 
     loop do
-      prompt("#{name}, please choose #{valid_choices}:")
+      prompt("#{name}, please choose #{valid_choices} " \
+             "('help' or 'h' for help):")
       choice = expand_choice(gets.chomp)
 
       break if valid_choice?(choice)
@@ -478,12 +591,12 @@ class Human < Player
   end
 
   def expand_choice(choice)
-    case choice
-    when 'r' then 'rock'
-    when 'p' then 'paper'
-    when 'l' then 'lizard'
-    when 's' then game_mode == :rpsls ? ask_scissors_or_spock : 'scissors'
-    else          choice
+    if Move::ABBREVIATIONS.keys.include? choice
+      Move::ABBREVIATIONS[choice]
+    elsif choice == 's'
+      game_mode == :rpsls ? ask_scissors_or_spock : 'scissors'
+    else
+      choice
     end
   end
 
@@ -492,14 +605,16 @@ class Human < Player
       prompt('scissors_or_spock')
       answer = gets.chomp.downcase
 
-      return 'scissors' if ['scissors', 'sc'].include?(answer)
-      return 'spock' if ['spock', 'sp'].include?(answer)
+      return 'scissors' if ['scissors', 'sc'].include? answer
+      return 'spock' if ['spock', 'sp'].include? answer
 
       prompt('invalid_choice')
     end
   end
 
   def valid_choice?(choice)
+    return true if ['help', 'h'].include? choice
+
     case game_mode
     when :rps   then ClassicMove::VALUES.include? choice
     when :rpsls then ExpandedMove::VALUES.include? choice
@@ -536,10 +651,43 @@ class Computer < Player
   end
 end
 
+class R2D2 < Computer
+  def set_name
+    self.name = 'R2D2'
+  end
+end
+
+class Hal < Computer
+  def set_name
+    self.name = 'Hal'
+  end
+end
+
+class Chappie < Computer
+  def set_name
+    self.name = 'Chappie'
+  end
+end
+
+class Sonny < Computer
+  def set_name
+    self.name = 'Sonny'
+  end
+end
+
+class Number5 < Computer
+  def set_name
+    self.name = 'Number 5'
+  end
+end
+
 class Move
   include Comparable
 
   attr_reader :value
+
+  ABBREVIATIONS = { 'r' => 'rock', 'p' => 'paper', 'sc' => 'scissors',
+                    'l' => 'lizard', 'sp' => 'spock' }
 
   def initialize(value)
     @value = value
@@ -562,7 +710,7 @@ class Move
   protected
 
   def beats?(other_move)
-    self.class::WIN_RULES[value].include?(other_move.value)
+    self.class::WIN_RULES[value].include? other_move.value
   end
 
   def ==(other_move)
@@ -602,4 +750,4 @@ end
 # as clear. Each of the WIN_RULES hashes accomplishes the same functionality
 # as creating separate classes in a way that makes move relationships clear
 
-RPSLSGame.new.play
+RPSLSGame.new.start
