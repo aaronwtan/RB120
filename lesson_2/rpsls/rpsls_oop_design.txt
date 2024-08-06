@@ -41,9 +41,9 @@ x Keeping score; implement option to choose how many wins to play to
   the win condition of the game
   - score needs to be reset to 0 when playing a new game
 x Add Lizard and Spock; implement option to play default or expanded game
-- Keep track of a history of moves that can be called any time a human player
+x Keep track of a history of moves that can be called any time a human player
 is prompted
-- Implement computer personalities and ability to toggle playing with personalities
+x Implement computer personalities and ability to toggle playing with personalities
 or the default (random) behavior
 x Implement option to designate whether a player is human or computer,
 letting 2 human or even 2 computer players play against each other

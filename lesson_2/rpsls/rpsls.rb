@@ -107,7 +107,7 @@ module Utility
 
   def answered_yes?
     loop do
-      answer = gets.chomp.downcase
+      answer = gets.chomp.strip.downcase
       return answer.start_with?('y') if ['y', 'yes', 'n', 'no'].include? answer
 
       prompt('invalid_yes_or_no')
@@ -115,16 +115,16 @@ module Utility
   end
 
   def pause
-    sleep(2)
+    sleep(1.5)
   end
 
   def print_with_loading(msg)
     print msg
-    sleep(0.5)
+    sleep(0.25)
 
     3.times do
       print '.'
-      sleep(0.5)
+      sleep(0.25)
     end
 
     puts ''
@@ -577,7 +577,7 @@ class Human < Player
     loop do
       prompt("#{name}, please choose #{valid_choices} " \
              "('help' or 'h' for help):")
-      choice = expand_choice(gets.chomp)
+      choice = expand_choice(gets.chomp.strip.downcase)
 
       break if valid_choice?(choice)
 
@@ -674,7 +674,7 @@ class Computer < Player
   end
 end
 
-# always chooses rock
+# always chooses rock; always
 class R2D2 < Computer
   def set_name
     self.name = 'R2D2'
@@ -758,6 +758,8 @@ class Sonny < Computer
   def set_name
     self.name = 'Sonny'
   end
+
+  private
 
   def chosen_move
     case game_mode
