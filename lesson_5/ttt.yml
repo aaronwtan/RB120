@@ -1,2 +1,3 @@
 welcome: "Welcome to Tic Tac Toe!"
 goodbye: "Thanks for playing Tic Tac Toe! Goodbye!"
+invalid_choice: "Sorry, that's not a valid choice."

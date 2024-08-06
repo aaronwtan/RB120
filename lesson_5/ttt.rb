@@ -49,10 +49,26 @@ end
 class TTTGame
   include Utility
 
-  attr_reader :board
+  attr_reader :board, :human, :computer
 
   def initialize
     @board = Board.new
+    @human = Player.new('X')
+    @computer = Player.new('O')
+  end
+
+  def human_moves
+    prompt "Choose a square between 1-9: "
+    square = nil
+
+    loop do
+      square = gets.chomp.to_i
+      break if (1..9).include?(square)
+
+      prompt('invalid_choice')
+    end
+
+    board.set_square_at(square, human.marker)
   end
 
   def play
@@ -60,11 +76,10 @@ class TTTGame
 
     loop do
       display_board
-      break
-      first_player_moves
+      human_moves
       break if someone_won? || board_full?
 
-      second_player_moves
+      computer_moves
       break if someone_won? || board_full?
     end
 
@@ -87,10 +102,14 @@ class Board
   def get_square_at(key)
     squares[key]
   end
+
+  def set_square_at(key, marker)
+    squares[key].marker = marker
+  end
 end
 
 class Square
-  attr_reader :marker
+  attr_accessor :marker
 
   def initialize(marker)
     @marker = marker
@@ -101,13 +120,11 @@ class Square
   end
 end
 
-class Player 
-  def initialize
-    
-  end
+class Player
+  attr_reader :marker
 
-  def mark
-
+  def initialize(marker)
+    @marker = marker
   end
 end
 
