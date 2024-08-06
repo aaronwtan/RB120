@@ -16,15 +16,15 @@ module Displayable
   def display_board
     puts ''
     puts "     |     |"
-    puts "     |     |"
-    puts "     |     |"
-    puts "-----+-----+-----"
-    puts "     |     |"
-    puts "     |     |"
+    puts "  #{board.get_square_at(1)}  |  #{board.get_square_at(2)}  |  #{board.get_square_at(3)}"
     puts "     |     |"
     puts "-----+-----+-----"
     puts "     |     |"
+    puts "  #{board.get_square_at(4)}  |  #{board.get_square_at(5)}  |  #{board.get_square_at(6)}"
     puts "     |     |"
+    puts "-----+-----+-----"
+    puts "     |     |"
+    puts "  #{board.get_square_at(7)}  |  #{board.get_square_at(8)}  |  #{board.get_square_at(9)}"
     puts "     |     |"
     puts ''
   end
@@ -49,6 +49,12 @@ end
 class TTTGame
   include Utility
 
+  attr_reader :board
+
+  def initialize
+    @board = Board.new
+  end
+
   def play
     display_welcome_message
 
@@ -68,14 +74,30 @@ class TTTGame
 end
 
 class Board
+  attr_reader :squares
+
+  INITIAL_MARKER = ' '
+
   def initialize
-    
+    @squares = (1..9).each_with_object({}) do |key, hsh|
+      hsh[key] = Square.new(INITIAL_MARKER)
+    end
+  end
+
+  def get_square_at(key)
+    squares[key]
   end
 end
 
 class Square
-  def initialize
-    
+  attr_reader :marker
+
+  def initialize(marker)
+    @marker = marker
+  end
+
+  def to_s
+    marker
   end
 end
 
