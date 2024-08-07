@@ -1,10 +1,7 @@
 require 'pry'
 require 'yaml'
 
-CLASSIC_MODE = 'Rock, Paper, Scissors'
-EXPANDED_MODE = 'Rock, Paper, Scissors, Lizard, Spock'
-
-RULES_RPS = <<-MSG
+RPS_RULES = <<-MSG
 Rock, Paper, Scissors is a two-player game where each player chooses one of
 three possible moves: (R) rock, (P) paper, (S) scissors. The chosen moves
 will then be compared to see who wins, according to the following rules:
@@ -19,7 +16,7 @@ Enter 'help' or 'h' at any time to see these rules again.
 
 MSG
 
-RULES_RPSLS = <<-MSG
+RPSLS_RULES = <<-MSG
 Rock, Paper, Scissors, Lizard, Spock is a two-player game expanding on the
 classical Rock, Paper, Scissors game where each player chooses one of
 five possible moves: (R) rock, (P) paper, (SC) scissors, (L) lizard, (SP) spock.
@@ -137,7 +134,7 @@ class RPSLSGame
   attr_accessor :settings, :mode_title
 
   def initialize
-    @mode_title = CLASSIC_MODE
+    @mode_title = Settings::CLASSIC_NAME
     display_welcome_message
   end
 
@@ -249,11 +246,7 @@ class Game
 
   def display_rules
     display_title(80, "RULES OF #{mode_title.upcase}")
-
-    case mode
-    when :rps   then puts RULES_RPS
-    when :rpsls then puts RULES_RPSLS
-    end
+    puts Settings.lookup(mode)[:rules]
 
     enter_to_continue
   end
@@ -375,13 +368,43 @@ class Settings
   attr_reader :default
   attr_accessor :players, :win_condition, :game_mode, :game_mode_title
 
+  CLASSIC_NAME = 'Rock, Paper, Scissors'
+  EXPANDED_NAME = 'Rock, Paper, Scissors, Lizard, Spock'
+
   def initialize(default: false)
     @default = default
     @players = []
     set_game_mode
-    @game_mode_title = expand_game_mode
+    @game_mode_title = full_mode_name
     set_players
     set_win_condition
+  end
+
+  def self.lookup(game_mode, choice = nil)
+    lookup_hsh = {
+      rps: {
+        full_name: CLASSIC_NAME,
+        rules: RPS_RULES,
+        values: ClassicMove::VALUES,
+        chosen_move: ClassicMove.new(choice),
+        random_move: ClassicMove.new(ClassicMove::VALUES.sample),
+        r2d2_move: ClassicMove.new(R2D2::MOVE_POOL),
+        hal_move: ClassicMove.new(Hal::MOVE_POOL.sample),
+        sonny_move: ClassicMove.new(Sonny::CLASSIC_MOVE_POOL.sample)
+      },
+      rpsls: {
+        full_name: EXPANDED_NAME,
+        rules: RPSLS_RULES,
+        values: ExpandedMove::VALUES,
+        chosen_move: ExpandedMove.new(choice),
+        random_move: ExpandedMove.new(ExpandedMove::VALUES.sample),
+        r2d2_move: ExpandedMove.new(R2D2::MOVE_POOL),
+        hal_move: ExpandedMove.new(Hal::MOVE_POOL.sample),
+        sonny_move: ExpandedMove.new(Sonny::EXPANDED_MOVE_POOL.sample)
+      }
+    }
+
+    lookup_hsh[game_mode]
   end
 
   private
@@ -472,11 +495,8 @@ class Settings
                      end
   end
 
-  def expand_game_mode
-    case game_mode
-    when :rps   then CLASSIC_MODE
-    when :rpsls then EXPANDED_MODE
-    end
+  def full_mode_name
+    Settings.lookup(game_mode)[:full_name]
   end
 end
 
@@ -542,13 +562,14 @@ end
 class Player
   include Utility
 
-  attr_reader :game_mode
+  attr_reader :game_mode, :move_pool
   attr_accessor :name, :move, :moves, :score
 
   def initialize(game_mode)
     set_name
     @moves = []
     @game_mode = game_mode
+    @move_pool = Settings.lookup(game_mode)[:values]
     @score = 0
   end
 
@@ -606,10 +627,7 @@ class Human < Player
   end
 
   def valid_choices
-    case game_mode
-    when :rps   then join_or(ClassicMove::VALUES)
-    when :rpsls then join_or(ExpandedMove::VALUES)
-    end
+    join_or(move_pool)
   end
 
   def expand_choice(choice)
@@ -637,17 +655,11 @@ class Human < Player
   def valid_choice?(choice)
     return true if ['help', 'h'].include? choice
 
-    case game_mode
-    when :rps   then ClassicMove::VALUES.include? choice
-    when :rpsls then ExpandedMove::VALUES.include? choice
-    end
+    move_pool.include? choice
   end
 
   def chosen_move(choice)
-    case game_mode
-    when :rps   then ClassicMove.new(choice)
-    when :rpsls then ExpandedMove.new(choice)
-    end
+    Settings.lookup(game_mode, choice)[:chosen_move]
   end
 end
 
@@ -667,15 +679,14 @@ class Computer < Player
   private
 
   def chosen_move
-    case game_mode
-    when :rps then ClassicMove.new(ClassicMove::VALUES.sample)
-    when :rpsls then ExpandedMove.new(ExpandedMove::VALUES.sample)
-    end
+    Settings.lookup(game_mode)[:random_move]
   end
 end
 
 # always chooses rock; always
 class R2D2 < Computer
+  MOVE_POOL = 'rock'
+
   def set_name
     self.name = 'R2D2'
   end
@@ -683,10 +694,7 @@ class R2D2 < Computer
   private
 
   def chosen_move
-    case game_mode
-    when :rps then ClassicMove.new('rock')
-    when :rpsls then ExpandedMove.new('rock')
-    end
+    Settings.lookup(game_mode)[:r2d2_move]
   end
 end
 
@@ -701,10 +709,7 @@ class Hal < Computer
   private
 
   def chosen_move
-    case game_mode
-    when :rps then ClassicMove.new(MOVE_POOL.sample)
-    when :rpsls then ExpandedMove.new(MOVE_POOL.sample)
-    end
+    Settings.lookup(game_mode)[:hal_move]
   end
 end
 
@@ -726,26 +731,15 @@ class Chappie < Computer
     return starting_move if move_counter.nil?
 
     self.move_counter += 1
-    case game_mode
-    when :rps
-      self.move_counter %= ClassicMove::VALUES.size
-      ClassicMove.new(ClassicMove::VALUES[move_counter])
-    when :rpsls
-      self.move_counter %= ExpandedMove::VALUES.size
-      ExpandedMove.new(ExpandedMove::VALUES[move_counter])
-    end
+    self.move_counter %= move_pool.size
+
+    choice = move_pool[move_counter]
+    Settings.lookup(game_mode, choice)[:chosen_move]
   end
 
   def starting_move
-    case game_mode
-    when :rps
-      move = ClassicMove.new(ClassicMove::VALUES.sample)
-      self.move_counter = ClassicMove::VALUES.index(move.value)
-    when :rpsls
-      move = ExpandedMove.new(ExpandedMove::VALUES.sample)
-      self.move_counter = ExpandedMove::VALUES.index(move.value)
-    end
-
+    move = Settings.lookup(game_mode)[:random_move]
+    self.move_counter = move_pool.index(move.value)
     move
   end
 end
@@ -762,10 +756,7 @@ class Sonny < Computer
   private
 
   def chosen_move
-    case game_mode
-    when :rps then ClassicMove.new(CLASSIC_MOVE_POOL.sample)
-    when :rpsls then ExpandedMove.new(EXPANDED_MOVE_POOL.sample)
-    end
+    Settings.lookup(game_mode)[:sonny_move]
   end
 end
 
