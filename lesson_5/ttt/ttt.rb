@@ -44,6 +44,17 @@ module Utility
       puts msg
     end
   end
+
+  def join_or(arr, delimiter=', ', word='or')
+    case arr.size
+    when 0 then ''
+    when 1 then arr.first.to_s
+    when 2 then arr.join(" #{word} ")
+    else
+      arr[-1] = "#{word} #{arr.last}"
+      arr.join(delimiter)
+    end
+  end
 end
 
 class TTTGame
@@ -69,9 +80,9 @@ class TTTGame
       # break if someone_won? || board_full?
 
       computer_moves
-      display_board
       # break if someone_won? || board_full?
-      break
+
+      display_board
     end
 
     # display_result
@@ -79,12 +90,12 @@ class TTTGame
   end
 
   def human_moves
-    prompt "Choose a square between 1-9: "
+    prompt "Choose a square (#{join_or(board.unmarked_keys)}): "
     square = nil
 
     loop do
       square = gets.chomp.to_i
-      break if (1..9).include?(square)
+      break if board.unmarked_keys.include?(square)
 
       prompt('invalid_choice')
     end
@@ -93,7 +104,7 @@ class TTTGame
   end
 
   def computer_moves
-    board.set_square_at((1..9).to_a.sample, computer.marker)
+    board.set_square_at(board.unmarked_keys.sample, computer.marker)
   end
 end
 
@@ -115,6 +126,10 @@ class Board
   def set_square_at(key, marker)
     squares[key].marker = marker
   end
+
+  def unmarked_keys
+    squares.keys.select { |key| squares[key].unmarked? }
+  end
 end
 
 class Square
@@ -126,6 +141,10 @@ class Square
 
   def to_s
     marker
+  end
+
+  def unmarked?
+    marker == Board::INITIAL_MARKER
   end
 end
 
