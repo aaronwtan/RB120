@@ -62,9 +62,9 @@ class TTTGame
 
   def play
     display_welcome_message
+    display_board
 
     loop do
-      display_board
       human_moves
       # break if someone_won? || board_full?
 
