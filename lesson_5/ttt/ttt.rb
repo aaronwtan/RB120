@@ -33,7 +33,12 @@ module Displayable
 
   def display_result
     display_board
-    prompt 'tie'
+
+    case board.detect_winner
+    when human.marker    then prompt('human_won')
+    when computer.marker then prompt('computer_won')
+    else                      prompt 'tie'
+    end
   end
 end
 
@@ -84,12 +89,10 @@ class TTTGame
 
     loop do
       human_moves
-      break if board.full?
-      # break i f someone_won? || board_full?
+      break if board.someone_won? || board.full?
 
       computer_moves
-      break if board.full?
-      # break if someone_won? || board_full?
+      break if board.someone_won? || board.full?
 
       display_board
     end
@@ -120,6 +123,10 @@ end
 class Board
   attr_reader :squares
 
+  WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] + # rows
+                  [[1, 4, 7], [2, 5, 8], [3, 6, 9]] + # columns
+                  [[1, 5, 9], [3, 5, 7]]              # diagonals
+
   def initialize
     @squares = (1..9).each_with_object({}) do |key, hsh|
       hsh[key] = Square.new
@@ -140,6 +147,22 @@ class Board
 
   def full?
     unmarked_keys.empty?
+  end
+
+  def someone_won?
+    !!detect_winner
+  end
+
+  def detect_winner
+    WINNING_LINES.each do |line|
+      if line.all? { |key| squares[key].marker == TTTGame::HUMAN_MARKER }
+        return TTTGame::HUMAN_MARKER
+      elsif line.all? { |key| squares[key].marker == TTTGame::COMPUTER_MARKER }
+        return TTTGame::COMPUTER_MARKER
+      end
+    end
+
+    nil
   end
 end
 
