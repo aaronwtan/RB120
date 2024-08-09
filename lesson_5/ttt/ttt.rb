@@ -14,6 +14,8 @@ module Displayable
   end
 
   def display_board
+    system 'clear'
+    prompt "You're a #{human.marker}. Computer is a #{computer.marker}."
     puts ''
     puts "     |     |"
     puts "  #{board.get_square_at(1)}  |  #{board.get_square_at(2)}  |  #{board.get_square_at(3)}"
@@ -27,6 +29,11 @@ module Displayable
     puts "  #{board.get_square_at(7)}  |  #{board.get_square_at(8)}  |  #{board.get_square_at(9)}"
     puts "     |     |"
     puts ''
+  end
+
+  def display_result
+    display_board
+    prompt 'tie'
   end
 end
 
@@ -77,15 +84,17 @@ class TTTGame
 
     loop do
       human_moves
-      # break if someone_won? || board_full?
+      break if board.full?
+      # break i f someone_won? || board_full?
 
       computer_moves
+      break if board.full?
       # break if someone_won? || board_full?
 
       display_board
     end
 
-    # display_result
+    display_result
     display_goodbye_message
   end
 
@@ -111,11 +120,9 @@ end
 class Board
   attr_reader :squares
 
-  INITIAL_MARKER = ' '
-
   def initialize
     @squares = (1..9).each_with_object({}) do |key, hsh|
-      hsh[key] = Square.new(INITIAL_MARKER)
+      hsh[key] = Square.new
     end
   end
 
@@ -130,12 +137,18 @@ class Board
   def unmarked_keys
     squares.keys.select { |key| squares[key].unmarked? }
   end
+
+  def full?
+    unmarked_keys.empty?
+  end
 end
 
 class Square
   attr_accessor :marker
 
-  def initialize(marker)
+  INITIAL_MARKER = ' '
+
+  def initialize(marker = INITIAL_MARKER)
     @marker = marker
   end
 
@@ -144,7 +157,7 @@ class Square
   end
 
   def unmarked?
-    marker == Board::INITIAL_MARKER
+    marker == INITIAL_MARKER
   end
 end
 
