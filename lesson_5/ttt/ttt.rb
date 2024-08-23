@@ -18,9 +18,8 @@ module Utility
     when 1 then arr.first.to_s
     when 2 then arr.join(" #{word} ")
     else
-      arr_copy = arr.dup
-      arr_copy[-1] = "#{word} #{arr_copy.last}"
-      arr_copy.join(delimiter)
+      word_and_last_element = ["#{word} #{arr[-1]}"]
+      (arr[0...-1] + word_and_last_element).join(delimiter)
     end
   end
 
@@ -36,12 +35,18 @@ module Utility
   def clear_screen
     system 'clear'
   end
+
+  def pause
+    sleep(1.5)
+  end
 end
 
 module TTTGameDisplay
+  include Utility
+
   def display_welcome_message
     prompt('welcome')
-    puts ''
+    pause
   end
 
   def display_goodbye_message
@@ -72,15 +77,45 @@ module TTTGameDisplay
 
   def display_play_again_message
     prompt('play_again')
-    puts ''
+    pause
+  end
+end
+
+module PlayerDisplay
+  include Utility
+
+  def display_marker_message
+    prompt("#{name} will play as #{marker}.")
+    pause
+  end
+
+  def clear_screen_and_display_player_welcome
+    clear_screen
+    display_player_welcome
+    pause
+  end
+
+  def display_player_welcome
+    case type
+    when :human    then display_human_welcome
+    when :computer then display_computer_welcome
+    end
+  end
+
+  def display_human_welcome
+    prompt("Welcome #{name}!")
+  end
+
+  def display_computer_welcome
+    prompt("#{name} has joined the game as a computer player.")
   end
 end
 
 class TTTGame
-  include Utility, TTTGameDisplay
+  include TTTGameDisplay
 
-  attr_reader :board, :human, :computer
-  attr_accessor :current_marker
+  attr_reader :board
+  attr_accessor :human, :computer, :current_marker
 
   HUMAN_MARKER = 'X'
   COMPUTER_MARKER = 'O'
@@ -88,6 +123,8 @@ class TTTGame
   FIRST_TO_MOVE = HUMAN_MARKER
 
   def initialize
+    clear_screen
+    display_welcome_message
     @board = Board.new
     @human = Human.new
     @computer = Computer.new
@@ -95,7 +132,6 @@ class TTTGame
   end
 
   def play
-    display_welcome_message
     main_game
     display_goodbye_message
   end
@@ -104,13 +140,13 @@ class TTTGame
 
   def main_game
     loop do
-      display_board
+      clear_screen_and_display_board
       player_move
       display_result
       break unless play_again?
 
-      reset
       display_play_again_message
+      reset
     end
   end
 
@@ -120,7 +156,11 @@ class TTTGame
   end
 
   def reset
+    clear_screen
+    Player.reset
     board.reset
+    self.human = Human.new
+    self.computer = Computer.new
     self.current_marker = FIRST_TO_MOVE
   end
 
@@ -219,7 +259,6 @@ class Board
   end
 
   def reset
-    clear_screen
     @squares = (1..9).each_with_object({}) { |key, hsh| hsh[key] = Square.new }
   end
 
@@ -254,21 +293,27 @@ class Square
 end
 
 class Player
-  include Utility
+  include PlayerDisplay
 
-  attr_reader :type
-  attr_accessor :name, :marker
+  attr_accessor :type, :name, :marker
 
   @@available_markers = %w(X O)
 
   def initialize
+    clear_screen
+    set_type
     set_name
-    # set_type
+    clear_screen_and_display_player_welcome
     set_marker
+    display_marker_message
   end
 
   def self.available_markers
     @@available_markers
+  end
+
+  def self.reset
+    @@available_markers = %w(X O)
   end
 
   private
@@ -279,15 +324,19 @@ class Player
 
   def choose_marker
     markers = Player.available_markers
-    return markers.first if markers.size == 1
+    return remaining_marker if markers.size == 1
 
     loop do
-      prompt("Choose #{join_or(markers)} for this player.")
+      prompt("#{name}, please choose #{join_or(markers)}.")
       choice = gets.chomp.upcase.strip
       return markers.delete(choice) if markers.include?(choice)
 
       prompt('invalid_choice')
     end
+  end
+
+  def remaining_marker
+    Player.available_markers.pop
   end
 end
 
@@ -295,7 +344,17 @@ class Human < Player
   private
 
   def set_name
-    prompt('ask_name')
+    answer = ''
+
+    loop do
+      prompt('ask_name')
+      answer = gets.chomp.strip
+      break unless answer.empty?
+
+      prompt('invalid_name')
+    end
+
+    self.name = answer
   end
 
   def set_type
