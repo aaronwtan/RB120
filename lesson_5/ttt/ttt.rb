@@ -41,8 +41,26 @@ module Utility
   end
 end
 
+module BannerDisplayable
+  def header(width, title = nil)
+
+  end
+
+  def body(text_lines, borders: true)
+    text_lines.each { |text_line| puts text_line }
+  end
+
+  def footer(width)
+
+  end
+
+  def display_banner(width, text_lines, title = nil)
+
+  end
+end
+
 module TTTGameDisplay
-  include Utility
+  include Utility, BannerDisplayable
 
   def display_welcome_message
     prompt('welcome')
@@ -54,8 +72,7 @@ module TTTGameDisplay
   end
 
   def display_player_markers_message
-    prompt(human.name_and_marker)
-    prompt(computer.name_and_marker)
+    [player1, player2].each { |player| prompt(player.name_and_marker) }
   end
 
   def display_board
@@ -73,10 +90,11 @@ module TTTGameDisplay
   def display_result
     display_board
 
-    case board.winning_marker
-    when human.marker    then prompt('human_won')
-    when computer.marker then prompt('computer_won')
-    else                      prompt 'tie'
+    if board.someone_won_round?
+      prompt("#{round_winning_player} won!")
+      round_winning_player.increment_score
+    else
+      prompt('tie')
     end
   end
 
@@ -120,38 +138,36 @@ class TTTGame
   include TTTGameDisplay
 
   attr_reader :board
-  attr_accessor :human, :computer, :current_marker
+  attr_accessor :player1, :player2, :current_player,
+                :game_win_condition
 
   HUMAN_MARKER = 'X'
   COMPUTER_MARKER = 'O'
-
-  FIRST_TO_MOVE = HUMAN_MARKER
 
   def initialize
     clear_screen
     display_welcome_message
     @board = Board.new
-    @human = Human.new
-    @computer = Computer.new
-    @current_marker = FIRST_TO_MOVE
+    @player1 = Human.new
+    @player2 = Computer.new
+    @current_player = player1
+    @game_win_condition = 5
   end
 
   def play
-    main_game
+    play_main_game
     display_goodbye_message
   end
 
   private
 
-  def main_game
+  def play_main_game
     loop do
-      clear_screen_and_display_board
-      player_move
-      display_result
+      play_until_game_won
       break unless play_again?
 
       display_play_again_message
-      reset
+      reset_game
     end
   end
 
@@ -160,19 +176,39 @@ class TTTGame
     answered_yes?
   end
 
-  def reset
+  def reset_game
     clear_screen
     Player.reset
     board.reset
-    self.human = Human.new
-    self.computer = Computer.new
-    self.current_marker = FIRST_TO_MOVE
+    self.player1 = Human.new
+    self.player2 = Computer.new
+    self.current_player = player1
+  end
+
+  def play_until_game_won
+    loop do
+      play_round
+      break if someone_won_game?
+
+      reset_round
+    end
+  end
+
+  def play_round
+    clear_screen_and_display_board
+    player_move
+    display_result
+  end
+
+  def reset_round
+    board.reset
+    self.current_player = player1
   end
 
   def player_move
     loop do
       current_player_moves
-      break if board.someone_won? || board.full?
+      break if board.someone_won_round? || board.full?
 
       clear_screen_and_display_board if human_turn?
     end
@@ -181,25 +217,34 @@ class TTTGame
   def current_player_moves
     if human_turn?
       human_moves
-      self.current_marker = COMPUTER_MARKER
     else
       computer_moves
-      self.current_marker = HUMAN_MARKER
     end
+
+    alternate_current_player
+  end
+
+  def alternate_current_player
+    self.current_player = if current_player == player1
+                            player2
+                          else
+                            player1
+                          end
   end
 
   def human_turn?
-    current_marker == HUMAN_MARKER
+    current_player.type == :human
   end
 
   def human_moves
     square = ask_human_square_choice
-    board[square] = human.marker
+    board[square] = current_player.marker
   end
 
   def ask_human_square_choice
     loop do
-      prompt "#{human.name}, choose a square (#{join_or(board.unmarked_keys)}):"
+      prompt "#{current_player.name}, " \
+             "choose a square (#{join_or(board.unmarked_keys)}):"
       square = gets.chomp.to_i
       return square if board.unmarked_keys.include?(square)
 
@@ -208,7 +253,24 @@ class TTTGame
   end
 
   def computer_moves
-    board[board.unmarked_keys.sample] = computer.marker
+    board[board.unmarked_keys.sample] = current_player.marker
+  end
+
+  def round_winning_player
+    case board.winning_marker
+    when player1.marker then player1
+    when player2.marker then player2
+    end
+  end
+
+  def game_winning_player
+    [player1, player2].select do |player|
+      player.score >= game_win_condition
+    end.first
+  end
+
+  def someone_won_game?
+    !!game_winning_player
   end
 end
 
@@ -251,7 +313,7 @@ class Board
     unmarked_keys.empty?
   end
 
-  def someone_won?
+  def someone_won_round?
     !!winning_marker
   end
 
@@ -301,7 +363,7 @@ end
 class Player
   include PlayerDisplay
 
-  attr_accessor :type, :name, :marker
+  attr_accessor :type, :name, :marker, :score
 
   @@available_markers = %w(X O)
 
@@ -312,6 +374,7 @@ class Player
     clear_screen_and_display_player_welcome
     set_marker
     display_marker_message
+    @score = 0
   end
 
   def self.available_markers
@@ -324,6 +387,14 @@ class Player
 
   def name_and_marker
     "#{name} is a #{marker}."
+  end
+
+  def increment_score
+    self.score += 1
+  end
+
+  def to_s
+    name
   end
 
   private
