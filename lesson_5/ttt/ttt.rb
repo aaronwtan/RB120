@@ -53,8 +53,13 @@ module TTTGameDisplay
     prompt('goodbye')
   end
 
+  def display_player_markers_message
+    prompt(human.name_and_marker)
+    prompt(computer.name_and_marker)
+  end
+
   def display_board
-    prompt "You're a #{human.marker}. Computer is a #{computer.marker}."
+    display_player_markers_message
     puts ''
     board.draw
     puts ''
@@ -188,17 +193,18 @@ class TTTGame
   end
 
   def human_moves
-    prompt "Choose a square (#{join_or(board.unmarked_keys)}): "
-    square = nil
+    square = ask_human_square_choice
+    board[square] = human.marker
+  end
 
+  def ask_human_square_choice
     loop do
+      prompt "#{human.name}, choose a square (#{join_or(board.unmarked_keys)}):"
       square = gets.chomp.to_i
-      break if board.unmarked_keys.include?(square)
+      return square if board.unmarked_keys.include?(square)
 
       prompt('invalid_choice')
     end
-
-    board[square] = human.marker
   end
 
   def computer_moves
@@ -314,6 +320,10 @@ class Player
 
   def self.reset
     @@available_markers = %w(X O)
+  end
+
+  def name_and_marker
+    "#{name} is a #{marker}."
   end
 
   private
