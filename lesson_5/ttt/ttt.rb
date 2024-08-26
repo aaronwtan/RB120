@@ -42,28 +42,55 @@ module Utility
 end
 
 module BannerDisplayable
-  def header(width, title = nil)
-
+  def display_title_banner(width, title)
+    width = [width, title.length + 2].max
+    puts header(width)
+    puts body_with_borders(width, ['', title, ''], :center)
+    puts footer(width)
   end
 
-  def body(text_lines, borders: true)
-    text_lines.each { |text_line| puts text_line }
+  def display_banner_with_borders(width, body_lines, align = :left, title = nil)
+    puts header(width, title)
+    puts body_with_borders(width, body_lines, align)
+    puts footer(width)
+  end
+
+  def display_banner_without_borders(width, body_lines, title = nil)
+    puts header(width, title)
+    puts body_lines
+    puts footer(width)
+  end
+
+  def header(width, title = nil)
+    return footer(width) unless title
+
+    "+#{" #{title} ".center(width - 2, '-')}+"
+  end
+
+  def body_with_borders(width, body_lines, align)
+    body_lines.map do |body_line|
+      case align
+      when :left   then "|#{body_line.ljust(width - 2)}|"
+      when :right  then "|#{body_line.rjust(width - 2)}|"
+      when :center then "|#{body_line.center(width - 2)}|"
+      end
+    end
   end
 
   def footer(width)
-
-  end
-
-  def display_banner(width, text_lines, title = nil)
-
+    "+#{'-' * (width - 2)}+"
   end
 end
 
 module TTTGameDisplay
   include Utility, BannerDisplayable
 
+  GAME_TITLE = 'TIC TAC TOE'
+  MAIN_TITLE_WIDTH = 40
+  SCOREBOARD_WIDTH = 20
+
   def display_welcome_message
-    prompt('welcome')
+    display_title_banner(MAIN_TITLE_WIDTH, "WELCOME TO #{GAME_TITLE}!")
     pause
   end
 
@@ -72,7 +99,7 @@ module TTTGameDisplay
   end
 
   def display_player_markers_message
-    [player1, player2].each { |player| prompt(player.name_and_marker) }
+    [player1, player2].each { |player| puts player.name_and_marker }
   end
 
   def display_board
@@ -82,20 +109,39 @@ module TTTGameDisplay
     puts ''
   end
 
-  def clear_screen_and_display_board
-    clear_screen
+  def display_scoreboard
+    title = "ROUND #{round}"
+    score_lines = [player1, player2].map do |player|
+      "#{player.name}: #{player.score}"
+    end
+    display_banner_without_borders(SCOREBOARD_WIDTH, score_lines, title)
+  end
+
+  def display_game
+    display_title_banner(MAIN_TITLE_WIDTH, GAME_TITLE)
+    display_scoreboard
     display_board
   end
 
-  def display_result
-    display_board
+  def clear_screen_and_display_game
+    clear_screen
+    display_game
+  end
 
+  def clear_screen_and_display_game_with_message(msg)
+    clear_screen_and_display_game
+    prompt(msg)
+  end
+
+  def display_result
     if board.someone_won_round?
-      prompt("#{round_winning_player} won!")
       round_winning_player.increment_score
+      clear_screen_and_display_game_with_message("#{round_winning_player} won!")
     else
-      prompt('tie')
+      clear_screen_and_display_game_with_message('tie')
     end
+
+    pause
   end
 
   def display_play_again_message
@@ -139,7 +185,7 @@ class TTTGame
 
   attr_reader :board
   attr_accessor :player1, :player2, :current_player,
-                :game_win_condition
+                :game_win_condition, :round
 
   HUMAN_MARKER = 'X'
   COMPUTER_MARKER = 'O'
@@ -152,6 +198,7 @@ class TTTGame
     @player2 = Computer.new
     @current_player = player1
     @game_win_condition = 5
+    @round = 1
   end
 
   def play
@@ -167,7 +214,7 @@ class TTTGame
       break unless play_again?
 
       display_play_again_message
-      reset_game
+      reset
     end
   end
 
@@ -176,13 +223,14 @@ class TTTGame
     answered_yes?
   end
 
-  def reset_game
+  def reset
     clear_screen
     Player.reset
     board.reset
     self.player1 = Human.new
     self.player2 = Computer.new
     self.current_player = player1
+    self.round = 1
   end
 
   def play_until_game_won
@@ -190,19 +238,20 @@ class TTTGame
       play_round
       break if someone_won_game?
 
-      reset_round
+      new_round
     end
   end
 
   def play_round
-    clear_screen_and_display_board
+    clear_screen_and_display_game
     player_move
     display_result
   end
 
-  def reset_round
-    board.reset
+  def new_round
+    self.round += 1
     self.current_player = player1
+    board.reset
   end
 
   def player_move
@@ -210,7 +259,7 @@ class TTTGame
       current_player_moves
       break if board.someone_won_round? || board.full?
 
-      clear_screen_and_display_board if human_turn?
+      clear_screen_and_display_game if human_turn?
     end
   end
 
