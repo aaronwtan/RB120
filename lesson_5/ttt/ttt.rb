@@ -196,12 +196,11 @@ class TTTGame
   def initialize
     clear_screen
     display_welcome_message
+    set_players
+    set_win_condition
     @board = Board.new
-    @player1 = Human.new
-    @player2 = Computer.new
     @current_player = player1
     @round = 1
-    set_win_condition
   end
 
   def play
@@ -234,26 +233,23 @@ class TTTGame
     else
       reset_with_previous_settings
     end
+
+    board.reset
+    self.current_player = player1
+    self.round = 1
   end
 
   def reset_with_new_settings
     clear_screen
     Player.reset
-    board.reset
-    self.player1 = Human.new
-    self.player2 = Computer.new
-    self.current_player = player1
-    self.round = 1
+    set_players
     set_win_condition
   end
 
   def reset_with_previous_settings
     clear_screen
-    board.reset
     player1.reset
     player2.reset
-    self.current_player = player1
-    self.round = 1
   end
 
   def play_until_game_won
@@ -343,6 +339,33 @@ class TTTGame
 
   def someone_won_game?
     !!game_winning_player
+  end
+
+  def set_players
+    self.player1 = ask_human_or_computer_player(1)
+    self.player2 = ask_human_or_computer_player(2)
+    update_duplicate_names
+  end
+
+  def ask_human_or_computer_player(num)
+    answer = ''
+
+    loop do
+      prompt("Is player #{num} a human or computer?")
+      answer = gets.chomp.downcase.strip
+      break if Player::TYPES.include?(answer)
+
+      prompt('invalid_choice')
+    end
+
+    Human::IDS.include?(answer) ? Human.new : Computer.new
+  end
+
+  def update_duplicate_names
+    return unless player1.name == player2.name
+
+    player1.name << ' 1'
+    player2.name << ' 2'
   end
 
   def set_win_condition
@@ -455,6 +478,8 @@ class Player
 
   attr_accessor :type, :name, :marker, :score
 
+  TYPES = ['human', 'computer', 'h', 'c']
+
   @@available_markers = %w(X O)
 
   def initialize
@@ -516,6 +541,8 @@ class Player
 end
 
 class Human < Player
+  IDS = ['human', 'h']
+
   private
 
   def set_name
@@ -539,6 +566,7 @@ end
 
 class Computer < Player
   NAMES = %w(HAL J.A.R.V.I.S Ultron Cortana Braniac Bender)
+  IDS = ['computer', 'c']
 
   private
 
