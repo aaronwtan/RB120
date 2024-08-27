@@ -37,7 +37,14 @@ module Utility
   end
 
   def pause
-    sleep(0.1)
+    sleep(1)
+  end
+
+  def valid_num_str?(str, sign = :+)
+    case sign
+    when :+ then str =~ /^ *\d+ *$/ && str.to_i.positive?
+    when :- then str =~ /^ *\d+ *$/ && str.to_i.negative?
+    end
   end
 end
 
@@ -197,7 +204,7 @@ class TTTGame
     clear_screen
     display_welcome_message
     set_players
-    set_win_condition
+    clear_screen_and_set_win_condition
     @board = Board.new
     @current_player = player1
     @round = 1
@@ -243,7 +250,7 @@ class TTTGame
     clear_screen
     Player.reset
     set_players
-    set_win_condition
+    clear_screen_and_set_win_condition
   end
 
   def reset_with_previous_settings
@@ -313,8 +320,10 @@ class TTTGame
     loop do
       prompt "#{current_player.name}, " \
              "choose a square (#{join_or(board.unmarked_keys)}):"
-      square = gets.chomp.to_i
-      return square if board.unmarked_keys.include?(square)
+      square = gets.chomp
+      if valid_num_str?(square) && board.unmarked_keys.include?(square.to_i)
+        return square.to_i
+      end
 
       prompt('invalid_choice')
     end
@@ -342,8 +351,8 @@ class TTTGame
   end
 
   def set_players
-    self.player1 = ask_human_or_computer_player(1)
-    self.player2 = ask_human_or_computer_player(2)
+    self.player1 = clear_screen_and_ask_human_or_computer_player(1)
+    self.player2 = clear_screen_and_ask_human_or_computer_player(2)
     update_duplicate_names
   end
 
@@ -361,6 +370,11 @@ class TTTGame
     Human::IDS.include?(answer) ? Human.new : Computer.new
   end
 
+  def clear_screen_and_ask_human_or_computer_player(num)
+    clear_screen
+    ask_human_or_computer_player(num)
+  end
+
   def update_duplicate_names
     return unless player1.name == player2.name
 
@@ -374,7 +388,7 @@ class TTTGame
 
     loop do
       answer = gets.chomp
-      break if valid_win_condition?(answer)
+      break if valid_num_str?(answer)
 
       prompt('invalid_win_condition')
     end
@@ -382,8 +396,9 @@ class TTTGame
     self.win_condition = answer.to_i
   end
 
-  def valid_win_condition?(str)
-    str =~ /^ *\d+ *$/ && str.to_i.positive?
+  def clear_screen_and_set_win_condition
+    clear_screen
+    set_win_condition
   end
 end
 
@@ -527,7 +542,7 @@ class Player
     return remaining_marker if markers.size == 1
 
     loop do
-      prompt("#{name}, please choose #{join_or(markers)}.")
+      prompt("Please choose #{join_or(markers)} for #{name}.")
       choice = gets.chomp.upcase.strip
       return markers.delete(choice) if markers.include?(choice)
 
