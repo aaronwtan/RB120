@@ -37,7 +37,7 @@ module Utility
   end
 
   def pause
-    sleep(1.5)
+    sleep(0.1)
   end
 end
 
@@ -99,7 +99,8 @@ module TTTGameDisplay
   end
 
   def display_player_markers_message
-    [player1, player2].each { |player| puts player.name_and_marker }
+    [player1, player2].each { |player| print player.name_and_marker }
+    puts ''
   end
 
   def display_board
@@ -115,6 +116,11 @@ module TTTGameDisplay
       "#{player.name}: #{player.score}"
     end
     display_banner_without_borders(SCOREBOARD_WIDTH, score_lines, title)
+    display_win_condition
+  end
+
+  def display_win_condition
+    puts "First to #{win_condition} wins!"
   end
 
   def display_game
@@ -185,10 +191,7 @@ class TTTGame
 
   attr_reader :board
   attr_accessor :player1, :player2, :current_player,
-                :game_win_condition, :round
-
-  HUMAN_MARKER = 'X'
-  COMPUTER_MARKER = 'O'
+                :round, :win_condition
 
   def initialize
     clear_screen
@@ -197,8 +200,8 @@ class TTTGame
     @player1 = Human.new
     @player2 = Computer.new
     @current_player = player1
-    @game_win_condition = 5
     @round = 1
+    set_win_condition
   end
 
   def play
@@ -224,11 +227,31 @@ class TTTGame
   end
 
   def reset
+    prompt('ask_change_settings')
+
+    if answered_yes?
+      reset_with_new_settings
+    else
+      reset_with_previous_settings
+    end
+  end
+
+  def reset_with_new_settings
     clear_screen
     Player.reset
     board.reset
     self.player1 = Human.new
     self.player2 = Computer.new
+    self.current_player = player1
+    self.round = 1
+    set_win_condition
+  end
+
+  def reset_with_previous_settings
+    clear_screen
+    board.reset
+    player1.reset
+    player2.reset
     self.current_player = player1
     self.round = 1
   end
@@ -314,12 +337,30 @@ class TTTGame
 
   def game_winning_player
     [player1, player2].select do |player|
-      player.score >= game_win_condition
+      player.score >= win_condition
     end.first
   end
 
   def someone_won_game?
     !!game_winning_player
+  end
+
+  def set_win_condition
+    answer = ''
+    prompt('ask_win_condition')
+
+    loop do
+      answer = gets.chomp
+      break if valid_win_condition?(answer)
+
+      prompt('invalid_win_condition')
+    end
+
+    self.win_condition = answer.to_i
+  end
+
+  def valid_win_condition?(str)
+    str =~ /^ *\d+ *$/ && str.to_i.positive?
   end
 end
 
@@ -435,11 +476,15 @@ class Player
   end
 
   def name_and_marker
-    "#{name} is a #{marker}."
+    "#{name} is a #{marker}. "
   end
 
   def increment_score
     self.score += 1
+  end
+
+  def reset
+    self.score = 0
   end
 
   def to_s
