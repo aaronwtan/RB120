@@ -90,6 +90,8 @@ module BannerDisplayable
 end
 
 module TTTGameSettings
+  include Utility
+
   def configure_new_settings
     set_players
     clear_screen_and_set_first_player
@@ -361,7 +363,7 @@ class TTTGame
       play_round
       break if someone_won_game?
 
-      new_round
+      initialize_new_round
     end
   end
 
@@ -371,7 +373,7 @@ class TTTGame
     display_result
   end
 
-  def new_round
+  def initialize_new_round
     self.round += 1
     self.current_player = round_losing_player
     board.reset
@@ -498,7 +500,8 @@ class Board
   def winning_marker
     WINNING_LINES.each do |line|
       test_squares = squares.values_at(*line)
-      return test_squares.first.marker if three_identical_markers?(test_squares)
+      test_markers = test_squares.select(&:marked?).map(&:marker)
+      return test_markers.first if three_identical_markers?(test_markers)
     end
 
     nil
@@ -510,9 +513,16 @@ class Board
 
   private
 
-  def three_identical_markers?(test_squares)
-    markers = test_squares.select(&:marked?).map(&:marker)
-    markers.size == 3 && markers.uniq.size == 1
+  def num_identical_markers?(test_markers, num)
+    test_markers.size == num && test_markers.uniq.size == 1
+  end
+
+  def three_identical_markers?(test_markers)
+    num_identical_markers?(test_markers, 3)
+  end
+
+  def two_identical_markers?(test_markers)
+    num_identical_markers?(test_markers, 2)
   end
 end
 
