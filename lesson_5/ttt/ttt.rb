@@ -36,8 +36,8 @@ module Utility
     system 'clear'
   end
 
-  def pause
-    sleep(1)
+  def pause(duration = 1)
+    sleep(duration)
   end
 
   def valid_num_str?(str, sign = :+)
@@ -89,6 +89,99 @@ module BannerDisplayable
   end
 end
 
+module TTTGameSettings
+  def configure_new_settings
+    set_players
+    clear_screen_and_set_first_player
+    display_first_player_message
+    clear_screen_and_set_win_condition
+    display_win_condition_message
+    pause
+  end
+
+  def set_players
+    self.player1 = clear_screen_and_ask_human_or_computer_player(1)
+    self.player2 = clear_screen_and_ask_human_or_computer_player(2)
+    update_duplicate_names
+  end
+
+  def clear_screen_and_ask_human_or_computer_player(num)
+    clear_screen
+    ask_human_or_computer_player(num)
+  end
+
+  def ask_human_or_computer_player(num)
+    answer = ''
+
+    loop do
+      prompt("Is player #{num} a human or computer?")
+      answer = gets.chomp.downcase.strip
+      break if Player::TYPES.include?(answer)
+
+      prompt('invalid_choice')
+    end
+
+    Human::IDS.include?(answer) ? Human.new : Computer.new
+  end
+
+  def update_duplicate_names
+    return unless player1.name == player2.name
+
+    player1.name += ' 1'
+    player2.name += ' 2'
+  end
+
+  def clear_screen_and_set_first_player
+    clear_screen
+    set_first_player
+  end
+
+  def set_first_player
+    self.first_player = case ask_first_player
+                        when player1.name then player1
+                        when player2.name then player2
+                        else                   random_first_player
+                        end
+  end
+
+  def ask_first_player
+    player_names = [player1.name, player2.name]
+
+    loop do
+      prompt("Choose #{join_or(player_names)} (case-sensitive) to go first " \
+             "(or press enter to let the computer decide).")
+      answer = gets.chomp.strip
+
+      return answer if answer.empty? || player_names.include?(answer)
+
+      prompt('invalid_choice')
+    end
+  end
+
+  def random_first_player
+    [player1, player2].sample
+  end
+
+  def clear_screen_and_set_win_condition
+    clear_screen
+    set_win_condition
+  end
+
+  def set_win_condition
+    answer = ''
+    prompt('ask_win_condition')
+
+    loop do
+      answer = gets.chomp
+      break if valid_num_str?(answer)
+
+      prompt('invalid_win_condition')
+    end
+
+    self.win_condition = answer.to_i
+  end
+end
+
 module TTTGameDisplay
   include Utility, BannerDisplayable
 
@@ -103,6 +196,12 @@ module TTTGameDisplay
 
   def display_goodbye_message
     prompt('goodbye')
+  end
+
+  def display_first_player_message
+    prompt("#{first_player} will go first. Loser of each round " \
+           "will go first on the next round.")
+    pause(3)
   end
 
   def display_player_markers_message
@@ -123,17 +222,11 @@ module TTTGameDisplay
       "#{player.name}: #{player.score}"
     end
     display_banner_without_borders(SCOREBOARD_WIDTH, score_lines, title)
-    display_win_condition
+    display_win_condition_message
   end
 
-  def display_win_condition
+  def display_win_condition_message
     puts "First to #{win_condition} wins!"
-  end
-
-  def display_game
-    display_title_banner(MAIN_TITLE_WIDTH, GAME_TITLE)
-    display_scoreboard
-    display_board
   end
 
   def clear_screen_and_display_game
@@ -144,6 +237,12 @@ module TTTGameDisplay
   def clear_screen_and_display_game_with_message(msg)
     clear_screen_and_display_game
     prompt(msg)
+  end
+
+  def display_game
+    display_title_banner(MAIN_TITLE_WIDTH, GAME_TITLE)
+    display_scoreboard
+    display_board
   end
 
   def display_result
@@ -194,19 +293,19 @@ module PlayerDisplay
 end
 
 class TTTGame
-  include TTTGameDisplay
+  include TTTGameSettings, TTTGameDisplay
 
   attr_reader :board
   attr_accessor :player1, :player2, :current_player,
-                :round, :win_condition
+                :first_player, :round, :win_condition
 
   def initialize
     clear_screen
     display_welcome_message
-    set_players
-    clear_screen_and_set_win_condition
+    configure_new_settings
+
+    @current_player = first_player
     @board = Board.new
-    @current_player = player1
     @round = 1
   end
 
@@ -242,21 +341,19 @@ class TTTGame
     end
 
     board.reset
-    self.current_player = player1
+    self.current_player = first_player
     self.round = 1
   end
 
   def reset_with_new_settings
     clear_screen
-    Player.reset
-    set_players
-    clear_screen_and_set_win_condition
+    Player.reset_markers
+    configure_new_settings
   end
 
   def reset_with_previous_settings
     clear_screen
-    player1.reset
-    player2.reset
+    [player1, player2].each(&:reset)
   end
 
   def play_until_game_won
@@ -276,7 +373,7 @@ class TTTGame
 
   def new_round
     self.round += 1
-    self.current_player = player1
+    self.current_player = round_losing_player
     board.reset
   end
 
@@ -340,6 +437,10 @@ class TTTGame
     end
   end
 
+  def round_losing_player
+    round_winning_player == player1 ? player2 : player1
+  end
+
   def game_winning_player
     [player1, player2].select do |player|
       player.score >= win_condition
@@ -348,57 +449,6 @@ class TTTGame
 
   def someone_won_game?
     !!game_winning_player
-  end
-
-  def set_players
-    self.player1 = clear_screen_and_ask_human_or_computer_player(1)
-    self.player2 = clear_screen_and_ask_human_or_computer_player(2)
-    update_duplicate_names
-  end
-
-  def ask_human_or_computer_player(num)
-    answer = ''
-
-    loop do
-      prompt("Is player #{num} a human or computer?")
-      answer = gets.chomp.downcase.strip
-      break if Player::TYPES.include?(answer)
-
-      prompt('invalid_choice')
-    end
-
-    Human::IDS.include?(answer) ? Human.new : Computer.new
-  end
-
-  def clear_screen_and_ask_human_or_computer_player(num)
-    clear_screen
-    ask_human_or_computer_player(num)
-  end
-
-  def update_duplicate_names
-    return unless player1.name == player2.name
-
-    player1.name << ' 1'
-    player2.name << ' 2'
-  end
-
-  def set_win_condition
-    answer = ''
-    prompt('ask_win_condition')
-
-    loop do
-      answer = gets.chomp
-      break if valid_num_str?(answer)
-
-      prompt('invalid_win_condition')
-    end
-
-    self.win_condition = answer.to_i
-  end
-
-  def clear_screen_and_set_win_condition
-    clear_screen
-    set_win_condition
   end
 end
 
@@ -511,7 +561,7 @@ class Player
     @@available_markers
   end
 
-  def self.reset
+  def self.reset_markers
     @@available_markers = %w(X O)
   end
 
