@@ -247,6 +247,18 @@ module TTTGameDisplay
     display_board
   end
 
+  def display_computer_choosing
+    print("#{current_player.name} is choosing")
+    pause(0.2)
+
+    3.times do
+      print('.')
+      pause(0.1)
+    end
+
+    puts ''
+  end
+
   def display_result
     if board.someone_won_round?
       round_winning_player.increment_score
@@ -407,6 +419,7 @@ class TTTGame
       human_moves
     else
       computer_moves
+      display_computer_choosing
     end
 
     alternate_current_player
@@ -449,7 +462,6 @@ class TTTGame
     move = random_move if move.nil?
 
     board[move] = current_player.marker
-    pause(0.5)
   end
 
   def offensive_move
