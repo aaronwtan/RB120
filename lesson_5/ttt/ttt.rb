@@ -369,22 +369,22 @@ class TTTGame
 
   def play_round
     clear_screen_and_display_game
-    player_move
+    players_move
     display_result
   end
 
   def initialize_new_round
     self.round += 1
-    self.current_player = round_losing_player
+    self.current_player = round_losing_player if round_losing_player
     board.reset
   end
 
-  def player_move
+  def players_move
     loop do
       current_player_moves
       break if board.someone_won_round? || board.full?
 
-      clear_screen_and_display_game if human_turn?
+      clear_screen_and_display_game
     end
   end
 
@@ -399,11 +399,11 @@ class TTTGame
   end
 
   def alternate_current_player
-    self.current_player = if current_player == player1
-                            player2
-                          else
-                            player1
-                          end
+    self.current_player = other_player
+  end
+
+  def other_player
+    current_player == player1 ? player2 : player1
   end
 
   def human_turn?
@@ -429,7 +429,29 @@ class TTTGame
   end
 
   def computer_moves
-    board[board.unmarked_keys.sample] = current_player.marker
+    move = offensive_move
+    move = defensive_move if move.nil?
+    move = center_move if move.nil?
+    move = random_move if move.nil?
+
+    board[move] = current_player.marker
+    pause(0.5)
+  end
+
+  def offensive_move
+    board.potential_winning_move(current_player.marker)
+  end
+
+  def defensive_move
+    board.potential_winning_move(other_player.marker)
+  end
+
+  def center_move
+    board.unmarked_keys.include?(5) ? 5 : nil
+  end
+
+  def random_move
+    board.unmarked_keys.sample
   end
 
   def round_winning_player
@@ -440,7 +462,10 @@ class TTTGame
   end
 
   def round_losing_player
-    round_winning_player == player1 ? player2 : player1
+    case round_winning_player
+    when player1 then player2
+    when player2 then player1
+    end
   end
 
   def game_winning_player
@@ -499,9 +524,21 @@ class Board
 
   def winning_marker
     WINNING_LINES.each do |line|
-      test_squares = squares.values_at(*line)
-      test_markers = test_squares.select(&:marked?).map(&:marker)
+      test_markers = marked_squares(line).map(&:marker)
+
       return test_markers.first if three_identical_markers?(test_markers)
+    end
+
+    nil
+  end
+
+  def potential_winning_move(marker)
+    WINNING_LINES.each do |line|
+      test_markers = marked_squares(line).map(&:marker)
+
+      if test_markers.include?(marker) && two_identical_markers?(test_markers)
+        return unmarked_keys.select { |key| line.include?(key) }.first
+      end
     end
 
     nil
@@ -512,6 +549,10 @@ class Board
   end
 
   private
+
+  def marked_squares(line)
+    squares.values_at(*line).select(&:marked?)
+  end
 
   def num_identical_markers?(test_markers, num)
     test_markers.size == num && test_markers.uniq.size == 1
