@@ -193,7 +193,7 @@ module TTTGameDisplay
 
   def display_welcome_message
     display_title_banner(MAIN_TITLE_WIDTH, "WELCOME TO #{GAME_TITLE}!")
-    pause
+    pause(3)
   end
 
   def display_goodbye_message
@@ -256,6 +256,19 @@ module TTTGameDisplay
     end
 
     pause
+  end
+
+  def display_final_result
+    formatted_points = pluralize('point', win_condition)
+    formatted_rounds = pluralize('round', round)
+    prompt("#{game_winning_player} scored #{win_condition} " \
+           "#{formatted_points} and is the grand winner of Tic Tac Toe " \
+           "after #{round} #{formatted_rounds}!")
+    pause
+  end
+
+  def pluralize(word, num)
+    num == 1 ? word : "#{word}s"
   end
 
   def display_play_again_message
@@ -321,6 +334,7 @@ class TTTGame
   def play_main_game
     loop do
       play_until_game_won
+      display_final_result
       break unless play_again?
 
       display_play_again_message
