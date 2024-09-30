@@ -36,7 +36,7 @@ module Utility
     system 'clear'
   end
 
-  def pause(duration = 1)
+  def pause(duration = 1.5)
     sleep(duration)
   end
 
@@ -519,21 +519,25 @@ class Board
   end
 
   def draw # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-    puts "     |     |"
+    puts "#{square_num(1)}    |#{square_num(2)}    |#{square_num(3)}"
     puts "  #{squares[1]}  |  #{squares[2]}  |  #{squares[3]}"
     puts "     |     |"
     puts "-----+-----+-----"
-    puts "     |     |"
+    puts "#{square_num(4)}    |#{square_num(5)}    |#{square_num(6)}"
     puts "  #{squares[4]}  |  #{squares[5]}  |  #{squares[6]}"
     puts "     |     |"
     puts "-----+-----+-----"
-    puts "     |     |"
+    puts "#{square_num(7)}    |#{square_num(8)}    |#{square_num(9)}"
     puts "  #{squares[7]}  |  #{squares[8]}  |  #{squares[9]}"
     puts "     |     |"
   end
 
   def []=(key, marker)
     squares[key].marker = marker
+  end
+
+  def square_num(key)
+    squares[key].unmarked? ? key : ' '
   end
 
   def unmarked_keys
