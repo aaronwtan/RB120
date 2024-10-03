@@ -1,2 +1,4 @@
+ask_name: "What is your name?"
+invalid_name: "Sorry, please enter a value."
 ask_play_again: "Would you like to play again? (y/n)"
 invalid_yes_or_no: "Sorry, must be y or n"

@@ -89,42 +89,67 @@ module BannerDisplayable
   end
 end
 
-module Hand
-  def hit
+class Card
+  SUIT_NAMES = { 'D' => 'Diamonds', 'C' => 'Clubs',
+                 'H' => 'Hearts', 'S' => 'Spades' }
+
+  def initialize(rank, suit, hidden: false)
+    @rank = rank
+    @suit = suit
+    @hidden = hidden
   end
 
-  def stay
+  def to_s
+    hidden ? '???' : "#{rank} of #{suit}"
   end
 
-  def busted?
+  def hidden?
+    hidden
   end
 
-  def total
-  end
-end
-
-class Participant
-  include Hand
-
-  attr_accessor :cards
-
-  def initialize
-    @cards = []
+  def hide
+    self.hidden = true
   end
 
-  def reset
-    self.cards = []
+  def reveal
+    self.hidden = false
+  end
+
+  def value
+    if face?
+      10
+    elsif ace?
+      11
+    else
+      rank.to_i
+    end
+  end
+
+  def rank
+    case @rank
+    when 'J' then 'Jack'
+    when 'Q' then 'Queen'
+    when 'K' then 'King'
+    when 'A' then 'Ace'
+    else          @rank
+    end
+  end
+
+  def suit
+    SUIT_NAMES[@suit]
+  end
+
+  def face?
+    rank == 'Jack' || rank == 'Queen' || rank == 'King'
+  end
+
+  def ace?
+    rank == 'Ace'
   end
 
   private
-end
 
-class Player < Participant
-  private
-end
-
-class Dealer < Participant
-  private
+  attr_accessor :hidden
 end
 
 class Deck
@@ -141,45 +166,127 @@ class Deck
     cards.pop
   end
 
-  # private
+  private
 
   attr_reader :cards
 end
 
-class Card
+module Hand
+  BUST_CONDITION = 21
 
-  def initialize(rank, suit)
-    @rank = rank
-    @suit = suit
+  def display_hand
+    total_str = cards.any?(&:hidden?) ? '???' : total.to_s
+    puts "#{name.upcase}'S TOTAL: #{total_str}"
+    cards.each { |card| prompt(card) }
+    puts ''
   end
 
-  def to_s
-    "#{rank} of #{suit}"
+  def add_card(new_card)
+    cards << new_card
+  end
+
+  def hit
+  end
+
+  def stay
+  end
+
+  def busted?
+    total > BUST_CONDITION
+  end
+
+  def total
+    total = cards.sum(&:value)
+    cards.count(&:ace?).times { total -= 10 if total > BUST_CONDITION }
+    total
+  end
+end
+
+module ParticipantDisplay
+  def display_turn_start_message
+    prompt("#{name}, it's your turn.")
+  end
+end
+
+class Participant
+  include Hand, Utility
+
+  attr_reader :name, :cards
+
+  def initialize
+    set_name
+    @cards = []
+  end
+
+  def reset
+    self.cards = []
   end
 
   private
 
-  def rank
-    case @rank
-    when 'J' then 'Jack'
-    when 'Q' then 'Queen'
-    when 'K' then 'King'
-    when 'A' then 'Ace'
-    else          @rank
-    end
+  attr_writer :name, :cards
+end
+
+class Player < Participant
+  def play_turn
+
   end
 
-  def suit
-    case @suit
-    when 'D' then 'Diamonds'
-    when 'C' then 'Clubs'
-    when 'H' then 'Hearts'
-    when 'S' then 'Spades'
+  private
+
+  def set_name
+    answer = ''
+
+    loop do
+      prompt('ask_name')
+      answer = gets.chomp.strip
+      break unless answer.empty?
+
+      prompt('invalid_name')
     end
+
+    self.name = answer
+  end
+end
+
+class Dealer < Participant
+  COMPUTER_NAMES = ['R2D2', 'Hal', 'Chappie', 'Sonny', 'Number 5']
+
+  def hide_hole_card
+    hole_card.hide
+  end
+
+  def reveal_hole_card
+    hole_card.reveal
+  end
+
+  def play_turn
+
+  end
+
+  private
+
+  def set_name
+    self.name = COMPUTER_NAMES.sample
+  end
+
+  def hole_card
+    cards.last
+  end
+end
+
+module TwentyOneDisplay
+  def display_all_cards
+    dealer.display_hand
+    player.display_hand
   end
 end
 
 class TwentyOne
+  include TwentyOneDisplay, Utility
+
+  DEALER_STAY_CONDITION = 17
+
   def initialize
     @deck = Deck.new
     @player = Player.new
@@ -187,8 +294,8 @@ class TwentyOne
   end
 
   def start
-    deal_cards
-    show_initial_cards
+    deal_initial_cards
+    display_all_cards
     # player_turn
     # dealer_turn
     # show_result
@@ -204,18 +311,17 @@ class TwentyOne
     dealer.reset
   end
 
-  def deal_cards
+  def deal_initial_cards
     2.times do
-      player.cards << deck.deal_one_card
-      dealer.cards << deck.deal_one_card
+      deal_one_card_from_deck_to(player)
+      deal_one_card_from_deck_to(dealer)
     end
+
+    dealer.hide_hole_card
   end
 
-  def show_initial_cards
-    puts 'DEALER CARDS'
-    puts dealer.cards.first
-    puts 'PLAYER CARDS'
-    player.cards.each { |card| puts card }
+  def deal_one_card_from_deck_to(participant)
+    participant.add_card(deck.deal_one_card)
   end
 
   def player_turn
