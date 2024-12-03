@@ -99,7 +99,7 @@ class Card
     @hidden = hidden
   end
 
-  def to_s
+  def to_s # NOTE: change implementation later to more intuitive graphical display of card
     hidden ? '???' : "#{rank} of #{suit}"
   end
 
@@ -115,41 +115,45 @@ class Card
     self.hidden = false
   end
 
-  def value
-    if face?
-      10
-    elsif ace?
-      11
-    else
-      rank.to_i
-    end
-  end
-
-  def rank
-    case @rank
-    when 'J' then 'Jack'
-    when 'Q' then 'Queen'
-    when 'K' then 'King'
-    when 'A' then 'Ace'
-    else          @rank
-    end
-  end
-
   def suit
     SUIT_NAMES[@suit]
-  end
-
-  def face?
-    rank == 'Jack' || rank == 'Queen' || rank == 'King'
-  end
-
-  def ace?
-    rank == 'Ace'
   end
 
   private
 
   attr_accessor :hidden
+end
+
+class NumberCard < Card
+  def value
+    rank.to_i
+  end
+
+  private
+
+  attr_reader :rank
+end
+
+class FaceCard < Card
+  RANK_NAMES = %w(J Q K).zip(%w(Jack Queen King)).to_h
+
+  def rank
+    RANK_NAMES[@rank]
+  end
+
+  def value
+    10
+  end
+end
+
+class AceCard < Card
+  def rank
+    'Ace'
+  end
+
+  def value
+    11
+  end
 end
 
 class Deck
@@ -158,8 +162,18 @@ class Deck
 
   def initialize
     @cards = []
-    RANKS.each { |rank| SUITS.each { |suit| cards << Card.new(rank, suit) } }
+    initialize_cards
     cards.shuffle!
+  end
+
+  def initialize_cards
+    RANKS.each do |rank|
+      SUITS.each do |suit|
+        cards << NumberCard.new(rank, suit) if number?(rank)
+        cards << FaceCard.new(rank, suit) if face?(rank)
+        cards << AceCard.new(rank, suit) if ace?(rank)
+      end
+    end
   end
 
   def deal_one_card
@@ -167,6 +181,18 @@ class Deck
   end
 
   private
+
+  def number?(rank)
+    ('2'..'10').to_a.include?(rank)
+  end
+
+  def face?(rank)
+    %w(J Q K).include?(rank)
+  end
+
+  def ace?(rank)
+    rank == 'A'
+  end
 
   attr_reader :cards
 end
@@ -191,7 +217,8 @@ module Hand
 
   def total
     total = cards.sum(&:value)
-    cards.count(&:ace?).times { total -= 10 if total > BUST_CONDITION }
+    num_of_aces = cards.count { |card| card.is_a?(AceCard) }
+    num_of_aces.times { total -= 10 if total > BUST_CONDITION }
     total
   end
 end
@@ -303,7 +330,7 @@ class TwentyOne
   def start
     deal_initial_cards
     display_all_cards
-    player.play_turn
+    # player.play_turn
     # dealer.play_turn
     # display_result
   end
