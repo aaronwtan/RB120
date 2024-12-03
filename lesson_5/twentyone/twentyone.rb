@@ -185,12 +185,6 @@ module Hand
     cards << new_card
   end
 
-  def hit
-  end
-
-  def stay
-  end
-
   def busted?
     total > BUST_CONDITION
   end
@@ -209,9 +203,7 @@ module ParticipantDisplay
 end
 
 class Participant
-  include Hand, Utility
-
-  attr_reader :name, :cards
+  include Hand, ParticipantDisplay, Utility
 
   def initialize
     set_name
@@ -224,12 +216,19 @@ class Participant
 
   private
 
-  attr_writer :name, :cards
+  attr_accessor :name, :cards
 end
 
 class Player < Participant
-  def play_turn
+  def choose_hit_or_stay
+    loop do
+      prompt('hit_or_stay')
+      answer = gets.chomp
 
+      return answer if ['h', 'hit', 's', 'stay'].include?(answer)
+
+      prompt('invalid_hit_or_stay')
+    end
   end
 
   private
@@ -261,7 +260,7 @@ class Dealer < Participant
   end
 
   def play_turn
-
+    
   end
 
   private
@@ -280,6 +279,14 @@ module TwentyOneDisplay
     dealer.display_hand
     player.display_hand
   end
+
+  def display_hit_message
+    prompt("#{name} hit!")
+  end
+
+  def display_stay_message
+    prompt("#{name} stays!")
+  end
 end
 
 class TwentyOne
@@ -296,9 +303,9 @@ class TwentyOne
   def start
     deal_initial_cards
     display_all_cards
-    # player_turn
-    # dealer_turn
-    # show_result
+    player.play_turn
+    # dealer.play_turn
+    # display_result
   end
 
   private
@@ -325,6 +332,8 @@ class TwentyOne
   end
 
   def player_turn
+    player.display_turn_start_message
+    choice = player.choose_hit_or_stay
   end
 end
 

@@ -1,4 +1,6 @@
 ask_name: "What is your name?"
 invalid_name: "Sorry, please enter a value."
+hit_or_stay: "(H) Hit  (S) Stay"
+invalid_hit_or_stay: "Invalid response. Please choose to (h) hit or (s) stay."
 ask_play_again: "Would you like to play again? (y/n)"
 invalid_yes_or_no: "Sorry, must be y or n"
