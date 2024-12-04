@@ -197,11 +197,25 @@ class Deck
   attr_reader :cards
 end
 
+module ParticipantDisplay
+  def display_turn_start_message
+    prompt("#{name}, it's your turn.")
+  end
+
+  def display_hit_message
+    prompt("#{name} hit!")
+  end
+
+  def display_stay_message
+    prompt("#{name} stays!")
+  end
+end
+
 module Hand
   BUST_CONDITION = 21
 
   def display_hand
-    total_str = cards.any?(&:hidden?) ? '???' : total.to_s
+    total_str = cards.any?(&:hidden?) ? '???' : total
     puts "#{name.upcase}'S TOTAL: #{total_str}"
     cards.each { |card| prompt(card) }
     puts ''
@@ -223,17 +237,12 @@ module Hand
   end
 end
 
-module ParticipantDisplay
-  def display_turn_start_message
-    prompt("#{name}, it's your turn.")
-  end
-end
-
 class Participant
   include Hand, ParticipantDisplay, Utility
 
-  def initialize
+  def initialize(deck)
     set_name
+    @deck = deck
     @cards = []
   end
 
@@ -241,9 +250,13 @@ class Participant
     self.cards = []
   end
 
+  def deal_one_card_from_deck_to_hand
+    add_card(deck.deal_one_card)
+  end
+
   private
 
-  attr_accessor :name, :cards
+  attr_accessor :name, :deck, :cards
 end
 
 class Player < Participant
@@ -252,9 +265,20 @@ class Player < Participant
       prompt('hit_or_stay')
       answer = gets.chomp
 
-      return answer if ['h', 'hit', 's', 'stay'].include?(answer)
+      return answer if %w(h hit s stay).include?(answer)
 
       prompt('invalid_hit_or_stay')
+    end
+  end
+
+  def play_turn
+    display_turn_start_message
+    choice = choose_hit_or_stay
+
+    if %w(h hit).include?(choice)
+
+    elsif %w(s stay).include?(choice)
+
     end
   end
 
@@ -297,7 +321,7 @@ class Dealer < Participant
   end
 
   def hole_card
-    cards.last
+    cards[1]
   end
 end
 
@@ -305,14 +329,6 @@ module TwentyOneDisplay
   def display_all_cards
     dealer.display_hand
     player.display_hand
-  end
-
-  def display_hit_message
-    prompt("#{name} hit!")
-  end
-
-  def display_stay_message
-    prompt("#{name} stays!")
   end
 end
 
@@ -323,14 +339,14 @@ class TwentyOne
 
   def initialize
     @deck = Deck.new
-    @player = Player.new
-    @dealer = Dealer.new
+    @player = Player.new(deck)
+    @dealer = Dealer.new(deck)
   end
 
   def start
-    deal_initial_cards
+    deal_initial_cards_and_hide_dealer_hole_card
     display_all_cards
-    # player.play_turn
+    player.play_turn
     # dealer.play_turn
     # display_result
   end
@@ -345,23 +361,19 @@ class TwentyOne
     dealer.reset
   end
 
-  def deal_initial_cards
-    2.times do
-      deal_one_card_from_deck_to(player)
-      deal_one_card_from_deck_to(dealer)
-    end
-
+  def deal_initial_cards_and_hide_dealer_hole_card
+    deal_initial_cards
     dealer.hide_hole_card
   end
 
-  def deal_one_card_from_deck_to(participant)
-    participant.add_card(deck.deal_one_card)
+  def deal_initial_cards
+    2.times { [player, dealer].each(&:deal_one_card_from_deck_to_hand) }
   end
 
-  def player_turn
-    player.display_turn_start_message
-    choice = player.choose_hit_or_stay
-  end
+  # def player_turn
+  #   player.display_turn_start_message
+  #   choice = player.choose_hit_or_stay
+  # end
 end
 
 game = TwentyOne.new
