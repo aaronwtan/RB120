@@ -199,7 +199,11 @@ end
 
 module ParticipantDisplay
   def display_turn_start_message
-    prompt("#{name}, it's your turn.")
+    if is_a?(Player)
+      prompt("#{name}, it's your turn.")
+    elsif is_a?(Dealer)
+      prompt("It's Dealer #{name}'s turn.")
+    end
   end
 
   def display_hit_message
@@ -225,6 +229,18 @@ module Hand
     cards << new_card
   end
 
+  def hit
+    display_hit_message
+    deal_one_card_from_deck_to_hand
+    display_hand
+    pause if is_a?(Dealer)
+  end
+
+  def stay
+    display_stay_message
+    display_hand
+  end
+
   def busted?
     total > BUST_CONDITION
   end
@@ -246,12 +262,24 @@ class Participant
     @cards = []
   end
 
+  def to_s
+    name
+  end
+
   def reset
     self.cards = []
   end
 
   def deal_one_card_from_deck_to_hand
     add_card(deck.deal_one_card)
+  end
+
+  def beats?(other_player)
+    total > other_player.total
+  end
+
+  def ties_with?(other_player)
+    total == other_player.total
   end
 
   private
@@ -273,13 +301,16 @@ class Player < Participant
 
   def play_turn
     display_turn_start_message
-    choice = choose_hit_or_stay
 
-    if %w(h hit).include?(choice)
+    loop do
+      choice = choose_hit_or_stay
+      break if %w(s stay).include?(choice)
 
-    elsif %w(s stay).include?(choice)
-
+      hit
+      return if busted?
     end
+
+    stay
   end
 
   private
@@ -301,6 +332,7 @@ end
 
 class Dealer < Participant
   COMPUTER_NAMES = ['R2D2', 'Hal', 'Chappie', 'Sonny', 'Number 5']
+  STAY_CONDITION = 17
 
   def hide_hole_card
     hole_card.hide
@@ -311,7 +343,9 @@ class Dealer < Participant
   end
 
   def play_turn
-    
+    display_turn_start_message
+    hit while total < STAY_CONDITION
+    stay unless busted?
   end
 
   private
@@ -330,12 +364,18 @@ module TwentyOneDisplay
     dealer.display_hand
     player.display_hand
   end
+
+  def display_result
+    display_all_cards
+    winner = determine_winner
+
+    prompt("#{winner} wins!")
+
+  end
 end
 
 class TwentyOne
   include TwentyOneDisplay, Utility
-
-  DEALER_STAY_CONDITION = 17
 
   def initialize
     @deck = Deck.new
@@ -347,8 +387,8 @@ class TwentyOne
     deal_initial_cards_and_hide_dealer_hole_card
     display_all_cards
     player.play_turn
-    # dealer.play_turn
-    # display_result
+    dealer.play_turn unless player.busted?
+    display_result
   end
 
   private
@@ -370,10 +410,21 @@ class TwentyOne
     2.times { [player, dealer].each(&:deal_one_card_from_deck_to_hand) }
   end
 
-  # def player_turn
-  #   player.display_turn_start_message
-  #   choice = player.choose_hit_or_stay
-  # end
+  def someone_busted?
+    player.busted? || dealer.busted?
+  end
+
+  def determine_winner
+    return [player, dealer].reject(&:busted?).first if someone_busted?
+
+    if player.beats?(dealer)
+      player
+    elsif dealer.beats?(player)
+      dealer
+    elsif player.ties_with?(dealer)
+      :push
+    end
+  end
 end
 
 game = TwentyOne.new
