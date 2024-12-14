@@ -367,10 +367,7 @@ module TwentyOneDisplay
 
   def display_result
     display_all_cards
-    winner = determine_winner
-
-    prompt("#{winner} wins!")
-
+    prompt(determine_result_msg_key)
   end
 end
 
@@ -414,16 +411,12 @@ class TwentyOne
     player.busted? || dealer.busted?
   end
 
-  def determine_winner
-    return [player, dealer].reject(&:busted?).first if someone_busted?
-
-    if player.beats?(dealer)
-      player
-    elsif dealer.beats?(player)
-      dealer
-    elsif player.ties_with?(dealer)
-      :push
-    end
+  def determine_result_msg_key
+    return 'player_bust' if player.busted?
+    return 'dealer_bust' if dealer.busted?
+    return 'player_wins' if player.beats?(dealer)
+    return 'dealer_wins' if dealer.beats?(player)
+    return 'push'        if player.ties_with?(dealer)
   end
 end
 
