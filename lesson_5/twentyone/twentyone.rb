@@ -36,7 +36,7 @@ module Utility
     system 'clear'
   end
 
-  def pause(duration = 1.5)
+  def pause(duration = 2)
     sleep(duration)
   end
 
@@ -90,9 +90,6 @@ module BannerDisplayable
 end
 
 class Card
-  SUIT_NAMES = { 'D' => 'Diamonds', 'C' => 'Clubs',
-                 'H' => 'Hearts', 'S' => 'Spades' }
-
   def initialize(rank, suit, hidden: false)
     @rank = rank
     @suit = suit
@@ -115,13 +112,9 @@ class Card
     self.hidden = false
   end
 
-  def suit
-    SUIT_NAMES[@suit]
-  end
-
   private
 
-  attr_accessor :hidden
+  attr_accessor :suit, :hidden
 end
 
 class NumberCard < Card
@@ -158,7 +151,7 @@ end
 
 class Deck
   RANKS = ('2'..'10').to_a + %w(J Q K A)
-  SUITS = %w(D C H S)
+  SUITS = %w(♦ ♣ ♥ ♠)
 
   def initialize
     @cards = []
@@ -204,6 +197,8 @@ module ParticipantDisplay
     elsif is_a?(Dealer)
       prompt("It's Dealer #{name}'s turn.")
     end
+
+    pause
   end
 
   def display_hit_message
@@ -230,15 +225,14 @@ module Hand
   end
 
   def hit
-    display_hit_message
     deal_one_card_from_deck_to_hand
-    display_hand
-    pause if is_a?(Dealer)
+    display_hit_message
+    pause
   end
 
   def stay
     display_stay_message
-    display_hand
+    pause
   end
 
   def busted?
@@ -299,20 +293,6 @@ class Player < Participant
     end
   end
 
-  def play_turn
-    display_turn_start_message
-
-    loop do
-      choice = choose_hit_or_stay
-      break if %w(s stay).include?(choice)
-
-      hit
-      return if busted?
-    end
-
-    stay
-  end
-
   private
 
   def set_name
@@ -342,12 +322,6 @@ class Dealer < Participant
     hole_card.reveal
   end
 
-  def play_turn
-    display_turn_start_message
-    hit while total < STAY_CONDITION
-    stay unless busted?
-  end
-
   private
 
   def set_name
@@ -365,9 +339,23 @@ module TwentyOneDisplay
     player.display_hand
   end
 
-  def display_result
+  def clear_screen_and_display_all_cards
+    clear_screen
     display_all_cards
-    prompt(determine_result_msg_key)
+  end
+
+  def determine_and_display_result
+    clear_screen_and_display_all_cards
+    winner, loser = determine_result
+
+    if someone_busted?
+      prompt("#{loser} bust. #{winner} wins!")
+    elsif winner
+      prompt("#{winner}'s score of #{winner.total} beats " \
+             "#{loser}'s score of #{loser.total}. #{winner} wins!")
+    else
+      prompt('push')
+    end
   end
 end
 
@@ -375,6 +363,7 @@ class TwentyOne
   include TwentyOneDisplay, Utility
 
   def initialize
+    clear_screen
     @deck = Deck.new
     @player = Player.new(deck)
     @dealer = Dealer.new(deck)
@@ -382,10 +371,10 @@ class TwentyOne
 
   def start
     deal_initial_cards_and_hide_dealer_hole_card
-    display_all_cards
-    player.play_turn
-    dealer.play_turn unless player.busted?
-    display_result
+    clear_screen_and_display_all_cards
+    play_player_turn
+    play_dealer_turn unless player.busted?
+    determine_and_display_result
   end
 
   private
@@ -411,12 +400,49 @@ class TwentyOne
     player.busted? || dealer.busted?
   end
 
-  def determine_result_msg_key
-    return 'player_bust' if player.busted?
-    return 'dealer_bust' if dealer.busted?
-    return 'player_wins' if player.beats?(dealer)
-    return 'dealer_wins' if dealer.beats?(player)
-    return 'push'        if player.ties_with?(dealer)
+  def play_player_turn
+    player.display_turn_start_message
+
+    loop do
+      clear_screen_and_display_all_cards
+      choice = player.choose_hit_or_stay
+      break if %w(s stay).include?(choice)
+
+      player.hit
+      return if player.busted?
+    end
+
+    player.stay
+  end
+
+  def play_dealer_turn
+    dealer.display_turn_start_message
+
+    while dealer.total < Dealer::STAY_CONDITION
+      clear_screen_and_display_all_cards
+      dealer.hit
+    end
+
+    dealer.stay unless dealer.busted?
+  end
+
+  def determine_winner
+    return player if dealer.busted?
+    return dealer if player.busted?
+
+    if player.beats?(dealer)
+      player
+    elsif dealer.beats?(player)
+      dealer
+    end
+  end
+
+  def determine_loser
+    determine_winner == player ? dealer : player
+  end
+
+  def determine_result
+    [determine_winner, determine_loser]
   end
 end
 
