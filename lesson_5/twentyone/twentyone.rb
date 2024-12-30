@@ -90,8 +90,6 @@ module BannerDisplayable
 end
 
 class Card
-  attr_reader :rank, :suit
-
   INNER_WIDTH = 5
 
   def initialize(rank, suit, hidden: false)
@@ -100,33 +98,33 @@ class Card
     @hidden = hidden
   end
 
-  def self.display(cards)
-    puts card_strings(cards)
-    puts ''
+  def self.build_display_lines(cards)
+    edge_lines = cards.map(&:edge_line).join
+    upper_rank_lines = cards.map(&:upper_rank_line).join
+    suit_lines = cards.map(&:suit_line).join
+    lower_rank_lines = cards.map(&:lower_rank_line).join
+
+    [edge_lines, upper_rank_lines, suit_lines, lower_rank_lines, edge_lines]
   end
 
-  def self.card_strings(cards)
-    cards.each_with_object(['', '', '', '', '']) do |card, card_strings|
-      card_strings[0] << "+#{'-' * INNER_WIDTH}+"
-      append_inner_cards_strings!(card, card_strings)
-      card_strings[-1] << "+#{'-' * INNER_WIDTH}+"
-    end
+  def edge_line
+    "+#{'-' * INNER_WIDTH}+"
   end
 
-  def self.append_inner_cards_strings!(card, card_strings)
-    if card.hidden?
-      card_strings[1..3].each do |inner_string|
-        inner_string << "|#{'*' * INNER_WIDTH}|"
-      end
-    else
-      card_strings[1] << "|#{card.rank.ljust(INNER_WIDTH)}|"
-      card_strings[2] << "|#{card.suit.center(INNER_WIDTH)}|"
-      card_strings[3] << "|#{card.rank.rjust(INNER_WIDTH)}|"
-    end
+  def upper_rank_line
+    hidden? ? "|#{'*' * INNER_WIDTH}|" : "|#{rank.ljust(INNER_WIDTH)}|"
+  end
+
+  def lower_rank_line
+    hidden? ? "|#{'*' * INNER_WIDTH}|" : "|#{rank.rjust(INNER_WIDTH)}|"
+  end
+
+  def suit_line
+    hidden? ? "|#{'*' * INNER_WIDTH}|" : "|#{suit.center(INNER_WIDTH)}|"
   end
 
   def to_s
-    hidden ? '???' : "#{rank} of #{suit}"
+    hidden? ? '???' : "#{rank} of #{suit}"
   end
 
   def hidden?
@@ -141,30 +139,32 @@ class Card
     self.hidden = false
   end
 
+  def value
+    if number?
+      rank.to_i
+    elsif face?
+      10
+    elsif ace?
+      11
+    end
+  end
+
+  def number?
+    ('2'..'10').to_a.include?(rank)
+  end
+
+  def face?
+    %w(J Q K).include?(rank)
+  end
+
+  def ace?
+    rank == 'A'
+  end
+
   private
 
   attr_accessor :hidden
-  attr_writer :suit
-end
-
-class NumberCard < Card
-  attr_reader :rank
-
-  def value
-    rank.to_i
-  end
-end
-
-class FaceCard < Card
-  def value
-    10
-  end
-end
-
-class AceCard < Card
-  def value
-    11
-  end
+  attr_reader :rank, :suit
 end
 
 class Deck
@@ -179,11 +179,7 @@ class Deck
 
   def initialize_cards
     RANKS.each do |rank|
-      SUITS.each do |suit|
-        cards << NumberCard.new(rank, suit) if number?(rank)
-        cards << FaceCard.new(rank, suit) if face?(rank)
-        cards << AceCard.new(rank, suit) if ace?(rank)
-      end
+      SUITS.each { |suit| cards << Card.new(rank, suit) }
     end
   end
 
@@ -193,18 +189,6 @@ class Deck
 
   private
 
-  def number?(rank)
-    ('2'..'10').to_a.include?(rank)
-  end
-
-  def face?(rank)
-    %w(J Q K).include?(rank)
-  end
-
-  def ace?(rank)
-    rank == 'A'
-  end
-
   attr_reader :cards
 end
 
@@ -213,7 +197,7 @@ module ParticipantDisplay
     if is_a?(Player)
       prompt("#{name}, it's your turn.")
     elsif is_a?(Dealer)
-      prompt("It's Dealer #{name}'s turn.")
+      prompt("It's Dealer #{name}'s turn. Revealing hole card...")
     end
 
     pause
@@ -225,7 +209,8 @@ module ParticipantDisplay
   end
 
   def display_hand
-    Card.display(cards)
+    puts Card.build_display_lines(cards)
+    puts ''
   end
 
   def display_info
@@ -247,8 +232,7 @@ module Hand
 
   def total
     total = cards.sum(&:value)
-    num_of_aces = cards.count { |card| card.is_a?(AceCard) }
-    num_of_aces.times { total -= 10 if total > BUST_CONDITION }
+    cards.count(&:ace?).times { total -= 10 if total > BUST_CONDITION }
     total
   end
 end
