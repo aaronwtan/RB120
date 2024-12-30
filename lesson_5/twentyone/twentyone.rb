@@ -201,38 +201,27 @@ module ParticipantDisplay
     pause
   end
 
-  def display_hit_message
-    prompt("#{name} hit!")
+  def display_total
+    total_str = cards.any?(&:hidden?) ? '???' : total
+    puts "#{name.upcase}'S TOTAL: #{total_str}"
   end
 
-  def display_stay_message
-    prompt("#{name} stays!")
+  def display_hand
+    cards.each { |card| prompt(card) }
+    puts ''
+  end
+
+  def display_info
+    display_total
+    display_hand
   end
 end
 
 module Hand
   BUST_CONDITION = 21
 
-  def display_hand
-    total_str = cards.any?(&:hidden?) ? '???' : total
-    puts "#{name.upcase}'S TOTAL: #{total_str}"
-    cards.each { |card| prompt(card) }
-    puts ''
-  end
-
   def add_card(new_card)
     cards << new_card
-  end
-
-  def hit
-    deal_one_card_from_deck_to_hand
-    display_hit_message
-    pause
-  end
-
-  def stay
-    display_stay_message
-    pause
   end
 
   def busted?
@@ -334,18 +323,22 @@ class Dealer < Participant
 end
 
 module TwentyOneDisplay
-  def display_all_cards
-    dealer.display_hand
-    player.display_hand
+  def display_game(msg_key)
+    dealer.display_info
+    player.display_info
+    return if msg_key.nil?
+
+    prompt(msg_key)
+    pause
   end
 
-  def clear_screen_and_display_all_cards
+  def clear_screen_and_display_game(msg_key = nil)
     clear_screen
-    display_all_cards
+    display_game(msg_key)
   end
 
   def determine_and_display_result
-    clear_screen_and_display_all_cards
+    clear_screen_and_display_game
     winner, loser = determine_result
 
     if someone_busted?
@@ -367,11 +360,10 @@ class TwentyOne
     @deck = Deck.new
     @player = Player.new(deck)
     @dealer = Dealer.new(deck)
+    deal_initial_cards_and_hide_dealer_hole_card
   end
 
   def start
-    deal_initial_cards_and_hide_dealer_hole_card
-    clear_screen_and_display_all_cards
     play_player_turn
     play_dealer_turn unless player.busted?
     determine_and_display_result
@@ -401,29 +393,31 @@ class TwentyOne
   end
 
   def play_player_turn
-    player.display_turn_start_message
+    clear_screen_and_display_game
 
     loop do
-      clear_screen_and_display_all_cards
       choice = player.choose_hit_or_stay
       break if %w(s stay).include?(choice)
 
-      player.hit
+      player.deal_one_card_from_deck_to_hand
+      clear_screen_and_display_game("#{player} hit!")
       return if player.busted?
     end
 
-    player.stay
+    clear_screen_and_display_game("#{player} stays!")
   end
 
   def play_dealer_turn
+    dealer.reveal_hole_card
+    clear_screen_and_display_game
     dealer.display_turn_start_message
 
     while dealer.total < Dealer::STAY_CONDITION
-      clear_screen_and_display_all_cards
-      dealer.hit
+      dealer.deal_one_card_from_deck_to_hand
+      clear_screen_and_display_game("#{dealer} hit!")
     end
 
-    dealer.stay unless dealer.busted?
+    clear_screen_and_display_game("#{dealer} stays!") unless dealer.busted?
   end
 
   def determine_winner
