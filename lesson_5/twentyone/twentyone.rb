@@ -90,13 +90,42 @@ module BannerDisplayable
 end
 
 class Card
+  attr_reader :rank, :suit
+
+  INNER_WIDTH = 5
+
   def initialize(rank, suit, hidden: false)
     @rank = rank
     @suit = suit
     @hidden = hidden
   end
 
-  def to_s # NOTE: change implementation later to more intuitive graphical display of card
+  def self.display(cards)
+    puts card_strings(cards)
+    puts ''
+  end
+
+  def self.card_strings(cards)
+    cards.each_with_object(['', '', '', '', '']) do |card, card_strings|
+      card_strings[0] << "+#{'-' * INNER_WIDTH}+"
+      append_inner_cards_strings!(card, card_strings)
+      card_strings[-1] << "+#{'-' * INNER_WIDTH}+"
+    end
+  end
+
+  def self.append_inner_cards_strings!(card, card_strings)
+    if card.hidden?
+      card_strings[1..3].each do |inner_string|
+        inner_string << "|#{'*' * INNER_WIDTH}|"
+      end
+    else
+      card_strings[1] << "|#{card.rank.ljust(INNER_WIDTH)}|"
+      card_strings[2] << "|#{card.suit.center(INNER_WIDTH)}|"
+      card_strings[3] << "|#{card.rank.rjust(INNER_WIDTH)}|"
+    end
+  end
+
+  def to_s
     hidden ? '???' : "#{rank} of #{suit}"
   end
 
@@ -114,36 +143,25 @@ class Card
 
   private
 
-  attr_accessor :suit, :hidden
+  attr_accessor :hidden
+  attr_writer :suit
 end
 
 class NumberCard < Card
+  attr_reader :rank
+
   def value
     rank.to_i
   end
-
-  private
-
-  attr_reader :rank
 end
 
 class FaceCard < Card
-  RANK_NAMES = %w(J Q K).zip(%w(Jack Queen King)).to_h
-
-  def rank
-    RANK_NAMES[@rank]
-  end
-
   def value
     10
   end
 end
 
 class AceCard < Card
-  def rank
-    'Ace'
-  end
-
   def value
     11
   end
@@ -207,8 +225,7 @@ module ParticipantDisplay
   end
 
   def display_hand
-    cards.each { |card| prompt(card) }
-    puts ''
+    Card.display(cards)
   end
 
   def display_info
