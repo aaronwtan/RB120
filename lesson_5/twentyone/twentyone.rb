@@ -3,6 +3,45 @@ require 'yaml'
 
 MESSAGES = YAML.load_file('twentyone.yml')
 
+RULES_PT1 = <<-MSG
+---------- RULES ----------
+=> OBJECTIVE:
+=> The goal of Twenty-One is to try to get as close to 21 as possible,
+=> without going over. If you go over 21, it's a "bust" and an
+=> immediate loss.
+
+=> SETUP:
+=> The game consists of a "dealer" and a "player". Both participants
+=> are initially dealt 2 cards. The player can see both their cards,
+=> but can initially see only the first of the dealer's cards,
+=> with the second card (the "hole" card) hidden from the player.
+
+=> CARD VALUES:
+=> Card numbers 2-10 are worth their face value. Jacks, queens,
+=> and kings are each worth 10. Aces are worth either 1 or 11,
+=> depending on the player's hand: an ace is counted as 11 if
+=> it does not cause the hand's value to exceed 21; otherwise,
+=> it is counted as 1.
+
+MSG
+
+RULES_PT2 = <<-MSG
+---------- RULES ----------
+=> GAMEPLAY:
+=> The player goes first and can choose to "hit" to add more cards
+=> to their hand, or "stay" to keep their current hand. If their
+=> hand's total exceeds 21, the player busts and loses.
+
+=> If the player stays without busting, the dealer's turn begins.
+=> The dealer must hit until their total hand is at least 17, at which
+=> point they must stay. If the dealer busts, the player wins.
+
+=> If both the player and dealer stay without busting, then the total value
+=> of each hand is compared and the winner is the one with the highest
+=> value. If the values are the same, it's a tie, resulting in a "push".
+
+MSG
+
 module Utility
   def prompt(msg)
     if MESSAGES.key?(msg)
@@ -240,10 +279,13 @@ end
 class Participant
   include Hand, ParticipantDisplay, Utility
 
+  attr_reader :score
+
   def initialize(deck)
     set_name
     @deck = deck
     @cards = []
+    @score = 0
   end
 
   def to_s
@@ -252,6 +294,10 @@ class Participant
 
   def reset
     self.cards = []
+  end
+
+  def increment_score
+    self.score += 1
   end
 
   def deal_one_card_from_deck_to_hand
@@ -269,6 +315,7 @@ class Participant
   private
 
   attr_accessor :name, :deck, :cards
+  attr_writer :score
 end
 
 class Player < Participant
@@ -324,6 +371,36 @@ class Dealer < Participant
 end
 
 module TwentyOneDisplay
+  include BannerDisplayable
+
+  GAME_TITLE = 'TWENTY-ONE'
+  TITLE_WIDTH = 30
+
+  def display_welcome_message
+    welcome_message = "WELCOME TO #{GAME_TITLE}!"
+    display_title_banner(TITLE_WIDTH, welcome_message)
+    pause
+  end
+
+  def display_goodbye_message
+    prompt('goodbye')
+  end
+
+  def display_rules
+    loop do
+      clear_screen
+      puts RULES_PT1
+      ask_player_ready
+
+      clear_screen
+      puts RULES_PT2
+
+      prompt('ask_rules_again')
+
+      return unless answered_yes?
+    end
+  end
+
   def display_game(msg_key)
     dealer.display_info
     player.display_info
@@ -338,10 +415,7 @@ module TwentyOneDisplay
     display_game(msg_key)
   end
 
-  def determine_and_display_result
-    clear_screen_and_display_game
-    winner, loser = determine_result
-
+  def display_round_result(winner, loser)
     if someone_busted?
       prompt("#{loser} bust. #{winner} wins!")
     elsif winner
@@ -350,35 +424,78 @@ module TwentyOneDisplay
     else
       prompt('push')
     end
+
+    pause
+  end
+
+  def determine_and_display_round_result
+    clear_screen_and_display_game
+    winner, loser = determine_round_result
+    winner.increment_score
+    display_round_result(winner, loser)
+  end
+
+  def determine_and_display_final_result
+    final_winner = determine_final_winner
+    prompt("#{final_winner} won #{final_win_condition} games and is the final " \
+           "winner of Twenty-One!")
+  end
+end
+
+module TwentyOneAskable
+  def ask_final_win_condition
+    prompt('ask_win_condition')
+
+    loop do
+      answer = gets.chomp
+      return self.final_win_condition = answer.to_i if ('1'..'10').include?(answer)
+
+      prompt('invalid_win_condition')
+    end
+  end
+
+  def ask_rules
+    clear_screen
+    prompt('ask_rules')
+
+    display_rules if answered_yes?
+    prompt('start_game')
+  end
+
+  def ask_player_ready
+    prompt('ready')
+    gets
+  end
+
+  def play_again?
+    prompt('ask_play_again')
+    answered_yes?
   end
 end
 
 class TwentyOne
-  include TwentyOneDisplay, Utility
+  include TwentyOneDisplay, TwentyOneAskable, Utility
 
   def initialize
     clear_screen
-    @deck = Deck.new
-    @player = Player.new(deck)
-    @dealer = Dealer.new(deck)
-    deal_initial_cards_and_hide_dealer_hole_card
+    display_welcome_message
+    reset_game
   end
 
   def start
-    play_player_turn
-    play_dealer_turn unless player.busted?
-    determine_and_display_result
+    loop do
+      play_game
+      break unless play_again?
+
+      reset_game
+    end
+
+    display_goodbye_message
   end
 
   private
 
-  attr_accessor :deck, :player, :dealer
-
-  def reset
-    self.deck = Deck.new
-    player.reset
-    dealer.reset
-  end
+  attr_accessor :deck, :player, :dealer, :final_win_condition, :round
 
   def deal_initial_cards_and_hide_dealer_hole_card
     deal_initial_cards
@@ -387,10 +504,6 @@ class TwentyOne
 
   def deal_initial_cards
     2.times { [player, dealer].each(&:deal_one_card_from_deck_to_hand) }
-  end
-
-  def someone_busted?
-    player.busted? || dealer.busted?
   end
 
   def play_player_turn
@@ -421,7 +534,11 @@ class TwentyOne
     clear_screen_and_display_game("#{dealer} stays!") unless dealer.busted?
   end
 
-  def determine_winner
+  def someone_busted?
+    player.busted? || dealer.busted?
+  end
+
+  def determine_round_winner
     return player if dealer.busted?
     return dealer if player.busted?
 
@@ -432,12 +549,54 @@ class TwentyOne
     end
   end
 
-  def determine_loser
-    determine_winner == player ? dealer : player
+  def determine_round_loser
+    determine_round_winner == player ? dealer : player
   end
 
-  def determine_result
-    [determine_winner, determine_loser]
+  def determine_round_result
+    [determine_round_winner, determine_round_loser]
+  end
+
+  def reset_round
+    self.deck = Deck.new
+    player.reset
+    dealer.reset
+  end
+
+  def play_round
+    deal_initial_cards_and_hide_dealer_hole_card
+    play_player_turn
+    play_dealer_turn unless player.busted?
+    determine_and_display_round_result
+  end
+
+  def someone_won_game?
+    player.score >= final_win_condition || dealer.score >= final_win_condition
+  end
+
+  def determine_final_winner
+    player.score > final_win_condition ? player : dealer
+  end
+
+  def reset_game
+    self.deck = Deck.new
+    self.player = Player.new(deck)
+    self.dealer = Dealer.new(deck)
+    self.round = 1
+    ask_final_win_condition
+    ask_rules
+    ask_player_ready
+  end
+
+  def play_game
+    loop do
+      play_round
+      break if someone_won_game?
+
+      reset_round
+    end
+
+    determine_and_display_final_result
   end
 end
 
