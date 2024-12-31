@@ -569,9 +569,10 @@ class TwentyOne
     while dealer.total < Dealer::STAY_CONDITION
       dealer.deal_one_card_from_deck_to_hand
       clear_screen_and_display_game("#{dealer} hit!")
+      return if dealer.busted?
     end
 
-    clear_screen_and_display_game("#{dealer} stays!") unless dealer.busted?
+    clear_screen_and_display_game("#{dealer} stays!")
   end
 
   def someone_busted?
