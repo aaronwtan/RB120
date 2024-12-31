@@ -75,6 +75,14 @@ module Utility
     system 'clear'
   end
 
+  def long_pause
+    pause
+  end
+
+  def short_pause
+    pause(1.3)
+  end
+
   def pause(duration = 2)
     sleep(duration)
   end
@@ -85,6 +93,10 @@ module Utility
     when :- then str =~ /^ *\d+ *$/ && str.to_i.negative?
     end
   end
+
+  def pluralize(str, num)
+    (num == 0 || num > 1) ? str + 's' : str
+  end
 end
 
 module BannerDisplayable
@@ -93,17 +105,18 @@ module BannerDisplayable
     puts header(width)
     puts body_with_borders(width, ['', title, ''], :center)
     puts footer(width)
+    puts ''
   end
 
-  def display_banner_with_borders(width, body_lines, align = :left, title = nil)
+  def display_banner_with_borders(width, body_lines_arr, align = :left, title = nil)
     puts header(width, title)
-    puts body_with_borders(width, body_lines, align)
+    puts body_with_borders(width, body_lines_arr, align)
     puts footer(width)
   end
 
-  def display_banner_without_borders(width, body_lines, title = nil)
+  def display_banner_without_borders(width, body_lines_arr, title = nil)
     puts header(width, title)
-    puts body_lines
+    puts body_lines_arr
     puts footer(width)
   end
 
@@ -113,8 +126,8 @@ module BannerDisplayable
     "+#{" #{title} ".center(width - 2, '-')}+"
   end
 
-  def body_with_borders(width, body_lines, align)
-    body_lines.map do |body_line|
+  def body_with_borders(width, body_lines_arr, align)
+    body_lines_arr.map do |body_line|
       case align
       when :left   then "|#{body_line.ljust(width - 2)}|"
       when :right  then "|#{body_line.rjust(width - 2)}|"
@@ -135,6 +148,10 @@ class Card
     @rank = rank
     @suit = suit
     @hidden = hidden
+  end
+
+  def self.display(cards)
+    puts build_display_lines(cards)
   end
 
   def self.build_display_lines(cards)
@@ -237,9 +254,8 @@ module ParticipantDisplay
       prompt("#{name}, it's your turn.")
     elsif is_a?(Dealer)
       prompt("It's Dealer #{name}'s turn. Revealing hole card...")
+      long_pause
     end
-
-    pause
   end
 
   def display_total
@@ -248,7 +264,7 @@ module ParticipantDisplay
   end
 
   def display_hand
-    puts Card.build_display_lines(cards)
+    Card.display(cards)
     puts ''
   end
 
@@ -374,12 +390,14 @@ module TwentyOneDisplay
   include BannerDisplayable
 
   GAME_TITLE = 'TWENTY-ONE'
-  TITLE_WIDTH = 30
+  WELCOME_TITLE_WIDTH = 30
+  GAME_TITLE_WIDTH = 20
+  SCOREBOARD_WIDTH = 19
 
   def display_welcome_message
     welcome_message = "WELCOME TO #{GAME_TITLE}!"
-    display_title_banner(TITLE_WIDTH, welcome_message)
-    pause
+    display_title_banner(WELCOME_TITLE_WIDTH, welcome_message)
+    long_pause
   end
 
   def display_goodbye_message
@@ -401,13 +419,29 @@ module TwentyOneDisplay
     end
   end
 
+  def display_scoreboard
+    scores_text_arr = ["#{player}: #{player.score}",
+                       "#{dealer}: #{dealer.score}"]
+    header_text = "ROUND #{round}"
+    display_banner_without_borders(SCOREBOARD_WIDTH,
+                                   scores_text_arr, header_text)
+  end
+
+  def display_final_win_condition
+    puts "First to #{final_win_condition} wins!"
+    puts ''
+  end
+
   def display_game(msg_key)
+    display_title_banner(GAME_TITLE_WIDTH, GAME_TITLE)
+    display_scoreboard
+    display_final_win_condition
     dealer.display_info
     player.display_info
     return if msg_key.nil?
 
     prompt(msg_key)
-    pause
+    short_pause
   end
 
   def clear_screen_and_display_game(msg_key = nil)
@@ -416,6 +450,8 @@ module TwentyOneDisplay
   end
 
   def display_round_result(winner, loser)
+    clear_screen_and_display_game
+
     if someone_busted?
       prompt("#{loser} bust. #{winner} wins!")
     elsif winner
@@ -425,20 +461,23 @@ module TwentyOneDisplay
       prompt('push')
     end
 
-    pause
+    long_pause
   end
 
   def determine_and_display_round_result
-    clear_screen_and_display_game
     winner, loser = determine_round_result
-    winner.increment_score
+    winner&.increment_score
     display_round_result(winner, loser)
   end
 
   def determine_and_display_final_result
     final_winner = determine_final_winner
-    prompt("#{final_winner} won #{final_win_condition} games and is the final " \
-           "winner of Twenty-One!")
+    total_games_str = pluralize('game', final_win_condition)
+    total_rounds_str = pluralize('round', round)
+    final_result_msg = "#{final_winner} won #{final_win_condition} " \
+                       "#{total_games_str} after #{round} #{total_rounds_str} " \
+                       "and is the final winner of Twenty-One!"
+    clear_screen_and_display_game(final_result_msg)
   end
 end
 
@@ -508,6 +547,7 @@ class TwentyOne
 
   def play_player_turn
     clear_screen_and_display_game
+    player.display_turn_start_message
 
     loop do
       choice = player.choose_hit_or_stay
@@ -558,6 +598,7 @@ class TwentyOne
   end
 
   def reset_round
+    self.round += 1
     self.deck = Deck.new
     player.reset
     dealer.reset
@@ -575,7 +616,7 @@ class TwentyOne
   end
 
   def determine_final_winner
-    player.score > final_win_condition ? player : dealer
+    player.score >= final_win_condition ? player : dealer
   end
 
   def reset_game
