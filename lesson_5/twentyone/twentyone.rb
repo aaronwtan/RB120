@@ -95,7 +95,7 @@ module Utility
   end
 
   def pluralize(str, num)
-    (num == 0 || num > 1) ? str + 's' : str
+    num == 0 || num > 1 ? "#{str}s" : str
   end
 end
 
@@ -108,7 +108,8 @@ module BannerDisplayable
     puts ''
   end
 
-  def display_banner_with_borders(width, body_lines_arr, align = :left, title = nil)
+  def display_banner_with_borders(width, body_lines_arr,
+                                  align = :left, title = nil)
     puts header(width, title)
     puts body_with_borders(width, body_lines_arr, align)
     puts footer(width)
@@ -475,8 +476,9 @@ module TwentyOneDisplay
     total_games_str = pluralize('game', final_win_condition)
     total_rounds_str = pluralize('round', round)
     final_result_msg = "#{final_winner} won #{final_win_condition} " \
-                       "#{total_games_str} after #{round} #{total_rounds_str} " \
-                       "and is the final winner of Twenty-One!"
+                       "#{total_games_str} after #{round} " \
+                       "#{total_rounds_str} and is the final winner " \
+                       "of Twenty-One!"
     clear_screen_and_display_game(final_result_msg)
   end
 end
@@ -487,7 +489,10 @@ module TwentyOneAskable
 
     loop do
       answer = gets.chomp
-      return self.final_win_condition = answer.to_i if ('1'..'10').include?(answer)
+      if ('1'..'10').include?(answer)
+        self.final_win_condition = answer.to_i
+        return
+      end
 
       prompt('invalid_win_condition')
     end
@@ -621,6 +626,7 @@ class TwentyOne
   end
 
   def reset_game
+    clear_screen
     self.deck = Deck.new
     self.player = Player.new(deck)
     self.dealer = Dealer.new(deck)
