@@ -1,18 +1,77 @@
+welcome_message: "WELCOME TO %{title}!"
+round_header: "ROUND %{round}"
+final_win_condition: "First to %{final_win_condition} wins!"
 ask_name: "What is your name?"
 invalid_name: "Sorry, please enter a value."
 ask_win_condition: "How many wins would you like to play to? (1-10)"
 invalid_win_condition: "Invalid response. Please enter a value from 1-10."
+rules_pt1: |
+  ---------- RULES ----------
+  => OBJECTIVE:
+  => The goal of Twenty-One is to try to get as close to 21 as possible,
+  => without going over. If you go over 21, it's a "bust" and an
+  => immediate loss.
+
+  => SETUP:
+  => The game consists of a "dealer" and a "player". Both participants
+  => are initially dealt 2 cards. The player can see both their cards,
+  => but can initially see only the first of the dealer's cards,
+  => with the second card (the "hole" card) hidden from the player.
+
+  => CARD VALUES:
+  => Card numbers 2-10 are worth their face value. Jacks, queens,
+  => and kings are each worth 10. Aces are worth either 1 or 11,
+  => depending on the player's hand: an ace is counted as 11 if
+  => it does not cause the hand's value to exceed 21; otherwise,
+  => it is counted as 1.
+   
+rules_pt2: |
+  ---------- RULES ----------
+  => GAMEPLAY:
+  => The player goes first and can choose to "hit" to add more cards
+  => to their hand, or "stay" to keep their current hand. If their
+  => hand's total exceeds 21, the player busts and loses.
+
+  => If the player stays without busting, the dealer's turn begins.
+  => The dealer must hit until their total hand is at least 17, at which
+  => point they must stay. If the dealer busts, the player wins.
+
+  => If both the player and dealer stay without busting, then the total value
+  => of each hand is compared and the winner is the one with the highest
+  => value. If the values are the same, it's a tie, resulting in a "push".
+   
 ask_rules: "Would you like to see the rules of Twenty-One? (y/n)"
 ask_rules_again: "Would you like to see these rules again? (y/n)"
 ready: "Enter any key to continue."
 start_game: "Very well. Let's start the game."
+player_turn: "%{name}, it's your turn."
+dealer_turn: "It's Dealer %{name}'s turn. Revealing hole card..."
 hit_or_stay: "(H) Hit  (S) Stay"
+valid_hit_or_stay_responses:
+  - "h"
+  - "hit"
+  - "s"
+  - "stay"
+stay_responses:
+  - "s"
+  - "stay"
+hit: "%{name} hit!"
+stay: "%{name} stays!"
 invalid_hit_or_stay: "Invalid response. Please choose to (h) hit or (s) stay."
-player_bust: "You bust. Dealer wins!"
-dealer_bust: "Dealer bust. You win!"
-player_wins: "You win!"
-dealer_wins: "Dealer wins!"
+someone_bust: "%{loser} bust. %{winner} wins!"
+winner: "%{winner}'s score of %{winner_score} beats %{loser}'s score of %{loser_score}. 
+        %{winner} wins!"
 push: It's a tie. Push!
+final_result: "%{final_winner} won %{final_win_condition} %{total_games} after %{round} 
+              %{total_rounds} and is the final winner of Twenty-One!"
 ask_play_again: "Would you like to play again? (y/n)"
+valid_yes_or_no_responses:
+  - "y"
+  - "yes"
+  - "n"
+  - "no"
+yes_responses:
+  - "y"
+  - "yes"
 invalid_yes_or_no: "Sorry, must be y or n."
 goodbye: "Thanks for playing Twenty-One. Goodbye!"

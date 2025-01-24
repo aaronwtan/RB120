@@ -1,57 +1,27 @@
 require 'pry'
 require 'yaml'
+require 'io/console'
 
 MESSAGES = YAML.load_file('twentyone.yml')
 
-RULES_PT1 = <<-MSG
----------- RULES ----------
-=> OBJECTIVE:
-=> The goal of Twenty-One is to try to get as close to 21 as possible,
-=> without going over. If you go over 21, it's a "bust" and an
-=> immediate loss.
-
-=> SETUP:
-=> The game consists of a "dealer" and a "player". Both participants
-=> are initially dealt 2 cards. The player can see both their cards,
-=> but can initially see only the first of the dealer's cards,
-=> with the second card (the "hole" card) hidden from the player.
-
-=> CARD VALUES:
-=> Card numbers 2-10 are worth their face value. Jacks, queens,
-=> and kings are each worth 10. Aces are worth either 1 or 11,
-=> depending on the player's hand: an ace is counted as 11 if
-=> it does not cause the hand's value to exceed 21; otherwise,
-=> it is counted as 1.
-
-MSG
-
-RULES_PT2 = <<-MSG
----------- RULES ----------
-=> GAMEPLAY:
-=> The player goes first and can choose to "hit" to add more cards
-=> to their hand, or "stay" to keep their current hand. If their
-=> hand's total exceeds 21, the player busts and loses.
-
-=> If the player stays without busting, the dealer's turn begins.
-=> The dealer must hit until their total hand is at least 17, at which
-=> point they must stay. If the dealer busts, the player wins.
-
-=> If both the player and dealer stay without busting, then the total value
-=> of each hand is compared and the winner is the one with the highest
-=> value. If the values are the same, it's a tie, resulting in a "push".
-
-MSG
-
 module Utility
-  def prompt(msg)
-    if MESSAGES.key?(msg)
-      puts ">> #{MESSAGES[msg]}"
-    else
-      puts ">> #{msg}"
-    end
+  def self.prompt(msg)
+    puts ">> #{msg}"
   end
 
-  def join_or(arr, delimiter=', ', word='or')
+  def self.messages(msg)
+    MESSAGES[msg]
+  end
+
+  def self.formatted_prompt(msg, **args)
+    prompt(format(messages(msg), **args))
+  end
+
+  def self.formatted_message(msg, **args)
+    format(messages(msg), **args)
+  end
+
+  def self.join_or(arr, delimiter=', ', word='or')
     case arr.size
     when 0 then ''
     when 1 then arr.first.to_s
@@ -62,39 +32,41 @@ module Utility
     end
   end
 
-  def answered_yes?
+  def self.answered_yes?
     loop do
       answer = gets.chomp.strip.downcase
-      return %w(y yes).include?(answer) if %w(y yes n no).include?(answer)
+      valid_responses = Utility.messages('valid_yes_or_no_responses')
+      yes_response = Utility.messages('yes_responses')
+      return yes_response.include?(answer) if valid_responses.include?(answer)
 
-      prompt('invalid_yes_or_no')
+      Utility.formatted_prompt('invalid_yes_or_no')
     end
   end
 
-  def clear_screen
+  def self.clear_screen
     system 'clear'
   end
 
-  def long_pause
+  def self.long_pause
     pause
   end
 
-  def short_pause
+  def self.short_pause
     pause(1.3)
   end
 
-  def pause(duration = 2)
+  def self.pause(duration = 2)
     sleep(duration)
   end
 
-  def valid_num_str?(str, sign = :+)
+  def self.valid_num_str?(str, sign = :+)
     case sign
     when :+ then str =~ /^ *\d+ *$/ && str.to_i.positive?
     when :- then str =~ /^ *\d+ *$/ && str.to_i.negative?
     end
   end
 
-  def pluralize(str, num)
+  def self.pluralize(str, num)
     num == 0 || num > 1 ? "#{str}s" : str
   end
 end
@@ -144,6 +116,7 @@ end
 
 class Card
   INNER_WIDTH = 5
+  HIDDEN_LINE_SEGMENT = "|#{'*' * INNER_WIDTH}|"
 
   def initialize(rank, suit, hidden: false)
     @rank = rank
@@ -169,15 +142,15 @@ class Card
   end
 
   def upper_rank_line
-    hidden? ? "|#{'*' * INNER_WIDTH}|" : "|#{rank.ljust(INNER_WIDTH)}|"
+    hidden? ? HIDDEN_LINE_SEGMENT : "|#{rank.ljust(INNER_WIDTH)}|"
   end
 
   def lower_rank_line
-    hidden? ? "|#{'*' * INNER_WIDTH}|" : "|#{rank.rjust(INNER_WIDTH)}|"
+    hidden? ? HIDDEN_LINE_SEGMENT : "|#{rank.rjust(INNER_WIDTH)}|"
   end
 
   def suit_line
-    hidden? ? "|#{'*' * INNER_WIDTH}|" : "|#{suit.center(INNER_WIDTH)}|"
+    hidden? ? HIDDEN_LINE_SEGMENT : "|#{suit.center(INNER_WIDTH)}|"
   end
 
   def to_s
@@ -207,7 +180,7 @@ class Card
   end
 
   def number?
-    ('2'..'10').to_a.include?(rank)
+    ('2'..'10').include?(rank)
   end
 
   def face?
@@ -250,15 +223,6 @@ class Deck
 end
 
 module ParticipantDisplay
-  def display_turn_start_message
-    if is_a?(Player)
-      prompt("#{name}, it's your turn.")
-    elsif is_a?(Dealer)
-      prompt("It's Dealer #{name}'s turn. Revealing hole card...")
-      long_pause
-    end
-  end
-
   def display_total
     total_str = cards.any?(&:hidden?) ? '???' : total
     puts "#{name.upcase}'S TOTAL: #{total_str}"
@@ -317,7 +281,7 @@ class Participant
     self.score += 1
   end
 
-  def deal_one_card_from_deck_to_hand
+  def draw_card
     add_card(deck.deal_one_card)
   end
 
@@ -336,14 +300,19 @@ class Participant
 end
 
 class Player < Participant
+  def display_turn_start_message
+    Utility.formatted_prompt('player_turn', name: name)
+  end
+
   def choose_hit_or_stay
     loop do
-      prompt('hit_or_stay')
-      answer = gets.chomp
+      Utility.formatted_prompt('hit_or_stay')
+      answer = gets.chomp.downcase
+      valid_responses = Utility.messages('valid_hit_or_stay_responses')
 
-      return answer if %w(h hit s stay).include?(answer)
+      return answer if valid_responses.include?(answer)
 
-      prompt('invalid_hit_or_stay')
+      Utility.formatted_prompt('invalid_hit_or_stay')
     end
   end
 
@@ -353,11 +322,11 @@ class Player < Participant
     answer = ''
 
     loop do
-      prompt('ask_name')
+      Utility.formatted_prompt('ask_name')
       answer = gets.chomp.strip
       break unless answer.empty?
 
-      prompt('invalid_name')
+      Utility.formatted_prompt('invalid_name')
     end
 
     self.name = answer
@@ -367,6 +336,11 @@ end
 class Dealer < Participant
   COMPUTER_NAMES = ['R2D2', 'Hal', 'Chappie', 'Sonny', 'Number 5']
   STAY_CONDITION = 17
+
+  def display_turn_start_message
+    Utility.formatted_prompt('dealer_turn', name: name)
+    Utility.long_pause
+  end
 
   def hide_hole_card
     hole_card.hide
@@ -396,44 +370,46 @@ module TwentyOneDisplay
   SCOREBOARD_WIDTH = 19
 
   def display_welcome_message
-    welcome_message = "WELCOME TO #{GAME_TITLE}!"
+    welcome_message = Utility.formatted_message('welcome_message',
+                                                title: GAME_TITLE)
     display_title_banner(WELCOME_TITLE_WIDTH, welcome_message)
-    long_pause
+    Utility.long_pause
   end
 
   def display_goodbye_message
-    prompt('goodbye')
+    Utility.formatted_prompt('goodbye')
   end
 
   def display_rules
     loop do
-      clear_screen
-      puts RULES_PT1
+      Utility.clear_screen
+      puts Utility.messages('rules_pt1')
       ask_player_ready
 
-      clear_screen
-      puts RULES_PT2
+      Utility.clear_screen
+      puts Utility.messages('rules_pt2')
 
-      prompt('ask_rules_again')
+      Utility.formatted_prompt('ask_rules_again')
 
-      return unless answered_yes?
+      return unless Utility.answered_yes?
     end
   end
 
   def display_scoreboard
     scores_text_arr = ["#{player}: #{player.score}",
                        "#{dealer}: #{dealer.score}"]
-    header_text = "ROUND #{round}"
+    header_text = Utility.formatted_message('round_header', round: round)
     display_banner_without_borders(SCOREBOARD_WIDTH,
                                    scores_text_arr, header_text)
   end
 
   def display_final_win_condition
-    puts "First to #{final_win_condition} wins!"
+    puts Utility.formatted_message('final_win_condition',
+                                   final_win_condition: final_win_condition)
     puts ''
   end
 
-  def display_game(msg_key)
+  def display_game(msg_key, **args)
     display_title_banner(GAME_TITLE_WIDTH, GAME_TITLE)
     display_scoreboard
     display_final_win_condition
@@ -441,28 +417,29 @@ module TwentyOneDisplay
     player.display_info
     return if msg_key.nil?
 
-    prompt(msg_key)
-    short_pause
+    Utility.formatted_prompt(msg_key, **args)
+    Utility.short_pause
   end
 
-  def clear_screen_and_display_game(msg_key = nil)
-    clear_screen
-    display_game(msg_key)
+  def clear_screen_and_display_game(msg_key = nil, **args)
+    Utility.clear_screen
+    display_game(msg_key, **args)
   end
 
   def display_round_result(winner, loser)
     clear_screen_and_display_game
 
     if someone_busted?
-      prompt("#{loser} bust. #{winner} wins!")
+      Utility.formatted_prompt('someone_bust', loser: loser, winner: winner)
     elsif winner
-      prompt("#{winner}'s score of #{winner.total} beats " \
-             "#{loser}'s score of #{loser.total}. #{winner} wins!")
+      Utility.formatted_prompt('winner', winner: winner, loser: loser,
+                                         winner_score: winner.total,
+                                         loser_score: loser.total)
     else
-      prompt('push')
+      Utility.formatted_prompt('push')
     end
 
-    long_pause
+    Utility.long_pause
   end
 
   def determine_and_display_round_result
@@ -472,20 +449,20 @@ module TwentyOneDisplay
   end
 
   def determine_and_display_final_result
-    final_winner = determine_final_winner
-    total_games_str = pluralize('game', final_win_condition)
-    total_rounds_str = pluralize('round', round)
-    final_result_msg = "#{final_winner} won #{final_win_condition} " \
-                       "#{total_games_str} after #{round} " \
-                       "#{total_rounds_str} and is the final winner " \
-                       "of Twenty-One!"
-    clear_screen_and_display_game(final_result_msg)
+    total_games = Utility.pluralize('game', final_win_condition)
+    total_rounds = Utility.pluralize('round', round)
+    clear_screen_and_display_game('final_result',
+                                  final_winner: determine_final_winner,
+                                  final_win_condition: final_win_condition,
+                                  total_games: total_games,
+                                  round: round,
+                                  total_rounds: total_rounds)
   end
 end
 
 module TwentyOneAskable
   def ask_final_win_condition
-    prompt('ask_win_condition')
+    Utility.formatted_prompt('ask_win_condition')
 
     loop do
       answer = gets.chomp
@@ -494,26 +471,26 @@ module TwentyOneAskable
         return
       end
 
-      prompt('invalid_win_condition')
+      Utility.formatted_prompt('invalid_win_condition')
     end
   end
 
   def ask_rules
-    clear_screen
-    prompt('ask_rules')
+    Utility.clear_screen
+    Utility.formatted_prompt('ask_rules')
 
-    display_rules if answered_yes?
-    prompt('start_game')
+    display_rules if Utility.answered_yes?
+    Utility.formatted_prompt('start_game')
   end
 
   def ask_player_ready
-    prompt('ready')
-    gets
+    Utility.formatted_prompt('ready')
+    $stdin.getch
   end
 
   def play_again?
-    prompt('ask_play_again')
-    answered_yes?
+    Utility.formatted_prompt('ask_play_again')
+    Utility.answered_yes?
   end
 end
 
@@ -521,7 +498,7 @@ class TwentyOne
   include TwentyOneDisplay, TwentyOneAskable, Utility
 
   def initialize
-    clear_screen
+    Utility.clear_screen
     display_welcome_message
     reset_game
   end
@@ -547,7 +524,7 @@ class TwentyOne
   end
 
   def deal_initial_cards
-    2.times { [player, dealer].each(&:deal_one_card_from_deck_to_hand) }
+    2.times { [player, dealer].each(&:draw_card) }
   end
 
   def play_player_turn
@@ -556,14 +533,14 @@ class TwentyOne
 
     loop do
       choice = player.choose_hit_or_stay
-      break if %w(s stay).include?(choice)
+      break if Utility.messages('stay_responses').include?(choice)
 
-      player.deal_one_card_from_deck_to_hand
-      clear_screen_and_display_game("#{player} hit!")
+      player.draw_card
+      clear_screen_and_display_game('hit', name: player)
       return if player.busted?
     end
 
-    clear_screen_and_display_game("#{player} stays!")
+    clear_screen_and_display_game('stay', name: player)
   end
 
   def play_dealer_turn
@@ -572,12 +549,12 @@ class TwentyOne
     dealer.display_turn_start_message
 
     while dealer.total < Dealer::STAY_CONDITION
-      dealer.deal_one_card_from_deck_to_hand
-      clear_screen_and_display_game("#{dealer} hit!")
+      dealer.draw_card
+      clear_screen_and_display_game('hit', name: dealer)
       return if dealer.busted?
     end
 
-    clear_screen_and_display_game("#{dealer} stays!")
+    clear_screen_and_display_game('stay', name: dealer)
   end
 
   def someone_busted?
@@ -626,7 +603,7 @@ class TwentyOne
   end
 
   def reset_game
-    clear_screen
+    Utility.clear_screen
     self.deck = Deck.new
     self.player = Player.new(deck)
     self.dealer = Dealer.new(deck)
